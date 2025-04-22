@@ -64,7 +64,7 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
     from_dir = str(from_dir) if from_dir else from_dir
 
     if verbose:
-        print("RUN: {}\nFROM: {}".format(cmd, os.getcwd() if from_dir is None else from_dir))
+        print(f"RUN: {cmd}\nFROM: {os.getcwd() if from_dir is None else from_dir}")
 
     if dry_run:
         return 0, "", ""
@@ -85,6 +85,8 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
         for line in iter(proc.stdout.readline,''):
             output += line
             print(line,end='')
+
+        proc.wait()
     else:
         # Parse stdout and stderr separately
         output, errput = proc.communicate()
