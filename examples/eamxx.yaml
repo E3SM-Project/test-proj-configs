@@ -54,8 +54,6 @@ machines:
         node_regex: null
         
     mappy:
-        # mach_file: "${project.root_dir}/cmake/machine-files/linux-generic.cmake"
-        # mach_file: "~/.cime/scream_mach_file.cmake"
         env_setup:
             - 'module load sems-cmake/3.27.9 sems-git/2.42.0 sems-gcc/11.4.0 sems-openmpi-no-cuda/4.1.6 sems-netcdf-c/4.9.2 sems-netcdf-cxx/4.2 sems-netcdf-fortran/4.6.1 sems-parallel-netcdf/1.12.3 sems-openblas'
             - 'export GATOR_INITIAL_MB=4000MB'
