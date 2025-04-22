@@ -19,7 +19,7 @@ class Machine(object):
             hostname = socket.gethostname()
             # Loop over machines, and see if there's one whose 'node_regex' matches the hostname
             for mn,props in machines_specs.items():
-                if "node_regex" in props.keys():
+                if "node_regex" in props.keys() and props["node_regex"]:
                     if re.match(props["node_regex"],hostname):
                         expect (name is None,
                                  "Multiple machines' node_regex match this hostname.\n"
