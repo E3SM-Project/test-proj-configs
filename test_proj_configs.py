@@ -200,6 +200,7 @@ class TestProjConfigs(object):
         baseline_dir = self._baselines_dir / build.longname
         build_dir    = self._work_dir     / build.longname
 
+        # Ensure clean build
         if build_dir.exists():
             shutil.rmtree(build_dir)
         build_dir.mkdir(parents=True)
@@ -219,9 +220,6 @@ class TestProjConfigs(object):
         # If non-empty, run these env setup cmds BEFORE running any command
         env_setup = " && ".join(self._machine.env_setup)
 
-        # We cannot just crash if we fail to generate baselines, since we would
-        # not get a dashboard report if we did that. Instead, just ensure there is
-        # no baseline file to compare against if there's a problem.
         log_file = f"{logs_dir}/LastConfig.log"
         cmd = f"{cmake_config}"
         stat, _, err = run_cmd(cmd,output_file=log_file,combine_output=True,
@@ -255,7 +253,7 @@ class TestProjConfigs(object):
         if self._project.baselines_gen_label:
             cmd += f" -L {self._project.baselines_gen_label}"
         cmd += f" --resource-spec-file {build_dir}/ctest_resource_file.json"
-        stat, _, err = run_cmd(cmd, output_to_screen=True,combine_output=True,
+        stat, _, err = run_cmd(cmd, output_to_screen=True,
                                env_setup=env_setup, from_dir=build_dir, verbose=True)
 
         if stat != 0:
@@ -288,11 +286,20 @@ class TestProjConfigs(object):
     def run_tests(self, build):
     ###############################################################################
 
+        # Prepare build and logs directories (if needed)
         build_dir = self._work_dir / build.longname
-        if not build_dir.exists():
-            expect (not self._skip_config,
+        if self._skip_config:
+            expect (build_dir.exists(),
                     "Build directory did not exist, but --skip-config/--skip-build was used.\n")
+        else:
+            if build_dir.exists():
+                shutil.rmtree(build_dir)
             build_dir.mkdir()
+
+        logs_dir = build_dir / "Testing/Temporary"
+        if not logs_dir.exists():
+            logs_dir.mkdir(parents=True)
+
         self.create_ctest_resource_file(build,build_dir)
 
         cmake_config = self.generate_cmake_config(build)
@@ -307,7 +314,9 @@ class TestProjConfigs(object):
         env_setup = " && ".join(self._machine.env_setup)
 
         if not self._skip_config:
-            stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,output_to_screen=self._verbose,
+            log_file = f"{logs_dir}/LastConfig.log"
+            stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,
+                                   output_file=log_file,combine_output=True,output_to_screen=self._verbose,
                                    from_dir=build_dir,verbose=True)
             if stat != 0:
                 print (f"WARNING: Failed to run tests (config phase):\n{err}")
@@ -325,8 +334,10 @@ class TestProjConfigs(object):
                 resources = self.get_taskset_resources(build, for_compile)
                 cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
 
-            stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir,
-                                   output_to_screen=self._verbose, verbose=True)
+            log_file = f"{logs_dir}/LastBuild.log"
+            stat, _, err = run_cmd(cmd, env_setup=env_setup,
+                                   output_file=log_file,combine_output=True,output_to_screen=self._verbose,
+                                   from_dir=build_dir,verbose=True)
 
             if stat != 0:
                 print (f"WARNING: Failed to run tests (build phase):\n{err}")
@@ -346,8 +357,10 @@ class TestProjConfigs(object):
             cmd += f" -L {self._test_labels}"
         cmd += " --output-on-failure"
 
-        stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir,
-                               output_to_screen=self._verbose, verbose=True)
+        log_file = f"{logs_dir}/LastBuild.log"
+        stat, _, err = run_cmd(cmd, env_setup=env_setup,
+                               output_file=log_file,combine_output=True,output_to_screen=self._verbose,
+                               from_dir=build_dir,verbose=True)
 
         if self._submit:
             run_cmd(f"ctest -S {self._root_dir}/CTestConfig.cmake --submit",
