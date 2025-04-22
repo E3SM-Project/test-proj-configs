@@ -19,11 +19,12 @@ class TestProjConfigs(object):
 ###############################################################################
 
     ###########################################################################
-    def __init__(self, config_file=None, submit=False, parallel=False, generate=False,
-                 baseline_dir=None, machine_name=None,
-                 cmake_args=None, build_types=None,
-                 work_dir=None, root_dir=None, no_build=False, no_run=False,
-                 verbose=False, test_regex=None, test_labels=None):
+    def __init__(self, config_file=None,
+                 machine_name=None, build_types=None,
+                 work_dir=None, root_dir=None, baseline_dir=None,
+                 cmake_args=None, test_regex=None, test_labels=None,
+                 config_only=False, build_only=False, skip_config=False, skip_build=False,
+                 generate=False, submit=False, parallel=False, verbose=False):
     ###########################################################################
 
         self._submit        = submit
@@ -33,16 +34,26 @@ class TestProjConfigs(object):
         self._cmake_args    = cmake_args
         self._work_dir      = pathlib.Path(work_dir or os.getcwd()+"/ctest-build").expanduser().absolute()
         self._verbose       = verbose
-        self._no_build      = no_build
-        self._no_run        = no_run
+        self._config_only   = config_only
+        self._build_only    = build_only
+        self._skip_config   = skip_config or skip_build # If we skip build, we also skip config
+        self._skip_build    = skip_build
         self._test_regex    = test_regex
         self._test_labels   = test_labels
         self._root_dir      = pathlib.Path(root_dir or os.getcwd()).expanduser().absolute()
         self._machine       = None
         self._builds        = []
 
-        if not self._work_dir.exists():
-            self._work_dir.mkdir()
+        ###################################
+        #          Sanity Checks          #
+        ###################################
+
+        expect (not (self._config_only and self._skip_config),
+                "Makes no sense to use --config-only and --skip-config/--skip-build together.\n")
+        expect (not (self._build_only and self._skip_build),
+                "Makes no sense to use --build-only and --skip-build together.\n")
+        expect (not (self._generate and self._skip_config),
+                "We do not allow to skip config/build phases when generating baselines.\n")
 
         # We print some git sha info (as well as store it in baselines) so make sure we are in a git repo
         expect(is_git_repo(self._root_dir),
@@ -56,6 +67,9 @@ class TestProjConfigs(object):
             ctest_config = self._root_dir / "CTestConfig.cmake"
             expect (ctest_config.exists(),
                     f"Cannot submit to cdash. CTestConfig.cmake was not found in root_dir={self._root_dir}")
+
+        if not self._work_dir.exists():
+            self._work_dir.mkdir()
 
         ###################################
         #  Parse the project config file  #
@@ -217,7 +231,7 @@ class TestProjConfigs(object):
             print (f"WARNING: Failed to create baselines (config phase):\n{err}")
             return False
 
-        if self._no_build:
+        if self._config_only:
             print("  - Skipping build/test phase, since --no-build was used")
             return True
 
@@ -234,7 +248,7 @@ class TestProjConfigs(object):
             print (f"WARNING: Failed to create baselines (build phase):\n{err}")
             return False
 
-        if self._no_run:
+        if self._build_only:
             print("  - Skipping test phase, since --no-build was used")
             return True
 
@@ -277,6 +291,8 @@ class TestProjConfigs(object):
 
         build_dir = self._work_dir / build.longname
         if not build_dir.exists():
+            expect (not self._skip_config,
+                    "Build directory did not exist, but --skip-config/--skip-build was used.\n")
             build_dir.mkdir()
         self.create_ctest_resource_file(build,build_dir)
 
@@ -291,28 +307,34 @@ class TestProjConfigs(object):
         # If non-empty, run these env setup cmds BEFORE running any command
         env_setup = " && ".join(self._machine.env_setup)
 
-        stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,
-                               from_dir=build_dir,verbose=self._verbose)
-        if stat != 0:
-            print (f"WARNING: Failed to run tests (config phase):\n{err}")
-            return False
+        if not self._skip_config:
+            stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,
+                                   from_dir=build_dir,verbose=self._verbose)
+            if stat != 0:
+                print (f"WARNING: Failed to run tests (config phase):\n{err}")
+                return False
+        else:
+            print(" -> Skipping config phase since --skip-build was used")
 
-        if self._no_build:
+        if self._config_only:
             print("  - Skipping build/test phase, since --no-build was used")
             return True
 
-        cmd = f"make -j{build.compile_res_count}"
-        if self._parallel:
-            resources = self.get_taskset_resources(build, for_compile)
-            cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
+        if not self._skip_build:
+            cmd = f"make -j{build.compile_res_count}"
+            if self._parallel:
+                resources = self.get_taskset_resources(build, for_compile)
+                cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
 
-        stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir, verbose=True)
+            stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir, verbose=True)
 
-        if stat != 0:
-            print (f"WARNING: Failed to run tests (build phase):\n{err}")
-            return False
+            if stat != 0:
+                print (f"WARNING: Failed to run tests (build phase):\n{err}")
+                return False
+        else:
+            print(" -> Skipping build phase since --skip-build was used")
 
-        if self._no_run:
+        if self._build_only:
             print("  - Skipping test phase, since --no-build was used")
             return True
 
