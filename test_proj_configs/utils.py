@@ -13,7 +13,7 @@ import importlib
 import importlib.util
 
 ###############################################################################
-def expect(condition, error_msg, exc_type=SystemExit, error_prefix="ERROR:"):
+def expect(condition, error_msg, exc_type=Exception, error_prefix="ERROR:"):
 ###############################################################################
     """
     Similar to assert except doesn't generate an ugly stacktrace. Useful for

@@ -1,4 +1,5 @@
 import os
+import sys
 import pathlib
 import concurrent.futures as threading
 import shutil
@@ -7,11 +8,26 @@ import json
 import re
 import itertools
 import yaml
+import argparse
 
-from project    import Project
-from machine    import Machine
-from build_type import BuildType
-from utils  import expect, run_cmd, get_current_ref, get_current_sha, is_git_repo
+from .project    import Project
+from .machine    import Machine
+from .build_type import BuildType
+from .utils      import expect, run_cmd, get_current_ref, get_current_sha, is_git_repo, \
+                        check_minimum_python_version, GoodFormatter
+
+check_minimum_python_version(3, 4)
+
+###############################################################################
+def main():
+###############################################################################
+    tpc = TestProjConfigs(**vars(parse_command_line(sys.argv, __doc__)))
+
+    success = tpc.run()
+
+    print("OVERALL STATUS: {}".format("PASS" if success else "FAIL"))
+
+    sys.exit(0 if success else 1)
 
 ###############################################################################
 class TestProjConfigs(object):
@@ -549,3 +565,64 @@ class TestProjConfigs(object):
                 # Skip non-baselines builds when generating baselines
                 if not self._generate or build.uses_baselines:
                     self._builds.append(build)
+
+###############################################################################
+def parse_command_line(args, description):
+###############################################################################
+    parser = argparse.ArgumentParser(
+        usage="""\n{0} <ARGS> [--verbose]
+OR
+{0} --help
+
+\033[1mEXAMPLES:\033[0m
+    \033[1;32m# Run all tests on machine FOO, using yaml config file /bar.yaml on machine 'mappy' \033[0m
+    > cd $scream_repo/components/eamxx
+    > ./scripts/{0} -m mappy -f /bar.yaml
+""".format(pathlib.Path(args[0]).name),
+        description=description,
+        formatter_class=GoodFormatter
+    )
+
+    parser.add_argument("-f","--config-file", help="YAML file containing valid project/machine settings")
+
+    parser.add_argument("-m", "--machine-name",
+        help="The name of the machine where we're testing. Must be found in machine_specs.py")
+    parser.add_argument("-t", "--build-types", action="extend", nargs='+', default=[],
+                        help=f"Only run specific test configurations")
+
+    parser.add_argument("-w", "--work-dir",
+        help="The work directory where all the building/testing will happen. Defaults to ${root_dir}/ctest-build")
+    parser.add_argument("-r", "--root-dir",
+        help="The root directory of the project (where the main CMakeLists.txt file is located)")
+    parser.add_argument("-b", "--baseline-dir",
+        help="Directory where baselines should be read/written from/to (depending if -g is used). Default is None which skips all baseline tests. AUTO means use machine-defined folder.")
+
+    parser.add_argument("-c", "--cmake-args", action="extend", default=[],
+            help="Extra custom options to pass to cmake. Can use multiple times for multiple cmake options. The -D is added for you, so just do VAR=VALUE. These value will supersed any other setting (including machine/build specs)")
+    parser.add_argument("-R", "--test-regex",
+                        help="Limit ctest to running only tests that match this regex")
+    parser.add_argument("-L", "--test-labels", nargs='+', default=[],
+                        help="Limit ctest to running only tests that match this label")
+
+
+    parser.add_argument("--config-only", action="store_true",
+            help="Only run config step, skip build and tests")
+    parser.add_argument("--build-only", action="store_true",
+            help="Only run config and build steps, skip tests (implies --no-build)")
+
+    parser.add_argument("--skip-config", action="store_true",
+            help="Skip cmake phase, pass directly to build. Requires the build directory to exist, and will fail if cmake phase never completed in that dir.")
+    parser.add_argument("--skip-build", action="store_true",
+            help="Skip build phase, pass directly to test. Requires the build directory to exist, and will fail if build phase never completed in that dir (implies --skip-config).")
+
+    parser.add_argument("-g", "--generate", action="store_true",
+        help="Instruct test-all-eamxx to generate baselines from current commit. Skips tests")
+
+    parser.add_argument("-s", "--submit", action="store_true", help="Submit results to dashboad")
+    parser.add_argument("-p", "--parallel", action="store_true",
+                        help="Launch the different build types stacks in parallel")
+
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Print output of config/build/test phases as they would be printed by running them manually.")
+
+    return parser.parse_args(args[1:])
