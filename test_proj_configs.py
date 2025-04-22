@@ -1,6 +1,6 @@
 import os
 import pathlib
-import threading
+import concurrent.futures as threading
 import shutil
 import psutil
 import json
@@ -152,22 +152,16 @@ class TestProjConfigs(object):
 
         num_workers = len(self._builds) if self._parallel else 1
 
-        build_success = {}
-        def run_thread (build):
-            if self._generate:
-                result = self.generate_baselines(build)
-            else:
-                result = self.run_tests(build)
-            builds_success[build] = result
+        fcn = self.generate_baselines if self._generate else self.run_tests
 
-        threads = []
-        for build in self._builds:
-            thread = threading.Thread(target=run_thread,args=[build])
-            threads.append(thread)
-            thread.start()
+        with threading.ProcessPoolExecutor(max_workers=num_workers) as executor:
 
-        for thread in threads:
-            thread.join()
+            future_to_build = {
+                    executor.submit(fcn,build) : build
+                    for build in self._builds}
+            for future in threading.as_completed(future_to_build):
+                build = future_to_build[future]
+                builds_success[build] = future.result()
 
         success = True
         for b,s in builds_success.items():
@@ -234,7 +228,7 @@ class TestProjConfigs(object):
 
         cmd = f"make -j{build.compile_res_count}"
         if self._parallel:
-            resources = self.get_taskset_resources(build, for_compile)
+            resources = self.get_taskset_resources(build, for_compile=True)
             cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
 
         log_file = f"{logs_dir}/LastBuild.log"
@@ -331,7 +325,7 @@ class TestProjConfigs(object):
         if not self._skip_build:
             cmd = f"make -j{build.compile_res_count}"
             if self._parallel:
-                resources = self.get_taskset_resources(build, for_compile)
+                resources = self.get_taskset_resources(build, for_compile=True)
                 cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
 
             log_file = f"{logs_dir}/LastBuild.log"
