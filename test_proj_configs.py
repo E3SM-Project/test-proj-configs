@@ -112,7 +112,7 @@ class TestProjConfigs(object):
             # works if the number of bld/run resources is no-less than the number of builds
             expect (self._machine.num_run_res>=len(self._builds),
                     "Cannot process build types in parallel, since we don't have enough resources.\n"
-                    f" - build types: {','.join(b.shortname for b in self._builds)}\n"
+                    f" - build types: {','.join(b.name for b in self._builds)}\n"
                     f" - num run res: {self._machine.num_run_res}")
 
             num_bld_res_left = self._machine.num_bld_res
