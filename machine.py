@@ -1,4 +1,6 @@
 import pathlib
+import socket
+import re
 
 from tpc_utils import expect, get_available_cpu_count
 
@@ -13,9 +15,24 @@ class Machine(object):
         # Check inputs
         expect (isinstance(machines_specs,dict),
                 f"Machine constructor expects a dict object for 'machines_specs' (got {type(machines_specs)} instead).\n")
-        expect (name in machines_specs.keys(),
-                f"Machine '{name}' not found in the 'machines' section of the config file.\n"
-                f" - available machines: {','.join(m for m in machines_specs.keys() if m!="default")}\n")
+        if name is None:
+            hostname = socket.gethostname()
+            # Loop over machines, and see if there's one whose 'node_regex' matches the hostname
+            for mn,props in machines_specs.items():
+                if "node_regex" in props.keys():
+                    if re.match(props["node_regex"],hostname):
+                        expect (name is None,
+                                 "Multiple machines' node_regex match this hostname.\n"
+                                f"  - hostname: {hostname}\n"
+                                f"  - mach 1: {name}\n"
+                                f"  - mach 2: {mn}\n")
+                        name = mn
+            expect (name is not None,
+                    f"Machine name was not provided, and none of the machines' node_regex matches hostname={hostname}\n")
+        else:
+            expect (name in machines_specs.keys(),
+                    f"Machine '{name}' not found in the 'machines' section of the config file.\n"
+                    f" - available machines: {','.join(m for m in machines_specs.keys() if m!="default")}\n")
 
         # Get props for this machine and for a default machine
         props   = machines_specs[name]

@@ -36,6 +36,7 @@ machines:
         mach_file: "~/.cime/scream_mach_file.cmake"
         env_setup: ['module load sems-openmpi', 'module load sems-netcdf-c/4.7.4', 'module load sems-netcdf-fortran/4.5.3']
         baselines_dir: "~/workdir/e3sm/e3sm-data/baselines/scream/groppello"
+        node_regex: s1007989
 
 configurations:
     default:
