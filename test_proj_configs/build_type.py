@@ -1,6 +1,6 @@
 import re
 
-from .utils import expect, expand_variables
+from .utils import expect, expand_variables, evaluate_commands
 
 ###############################################################################
 class BuildType(object):
@@ -61,6 +61,9 @@ class BuildType(object):
             'build'   : self
         }
         expand_variables(self,objects)
+
+        # Evaluate remaining bash commands of the form $(...)
+        evaluate_commands(self)
 
         # Properties set at runtime by the TestProjBuild
         self.compile_res_count = None

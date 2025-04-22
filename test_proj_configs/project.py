@@ -1,4 +1,4 @@
-from .utils import expect
+from .utils import expect, evaluate_commands
 
 ###############################################################################
 class Project(object):
@@ -13,7 +13,9 @@ class Project(object):
 
         expect ('name' in project_specs.keys(),
                 "Missing required field 'name' in 'project' section.\n")
+
         self.name = project_specs['name']
+        self.root_dir = root_dir
 
         # If left to None, ALL tests are run during baselines generation
         self.baselines_gen_label = project_specs.get('baseline_gen_label',None)
@@ -27,4 +29,5 @@ class Project(object):
         # If the proj has a cmake var that can turn on/off baselines tests, we can use it
         self.enable_baselines_cmake_option = project_specs.get('enable_baselines_cmake_option',None)
 
-        self.root_dir = root_dir
+        # Evaluate remaining bash commands of the form $(...)
+        evaluate_commands(self)
