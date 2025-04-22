@@ -11,8 +11,7 @@ import yaml
 from project    import Project
 from machine    import Machine
 from build_type import BuildType
-from tpc_utils  import expect, run_cmd
-from git_utils  import get_current_ref, get_current_sha, is_git_repo
+from tpc_utils  import expect, run_cmd, get_current_ref, get_current_sha, is_git_repo
 
 ###############################################################################
 class TestProjConfigs(object):
