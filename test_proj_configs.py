@@ -316,7 +316,7 @@ class TestProjConfigs(object):
                 print (f"WARNING: Failed to run tests (config phase):\n{err}")
                 return False
         else:
-            print(" -> Skipping config phase since --skip-build was used")
+            print(" -> Skipping config phase since --skip-config (or --skip-build) was used")
 
         if self._config_only:
             print("  - Skipping build/test phase, since --no-build was used")
