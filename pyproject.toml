@@ -5,10 +5,12 @@ description = "A framework for configure unit testing of a cmake-based project"
 requires-python = ">=3.6"
 dependencies = ["pyyaml", "psutil"]
 authors = [
-  {name = "Luca Bertagna", email = "lbertag@sandia.gov"}
+  {name = "Luca Bertagna", email = "lbertag@sandia.gov"},
+  {name = "James Foucar",  email = "jgfouca@sandia.gov"}
 ]
 maintainers = [
-  {name = "Luca Bertagna", email = "lbertag@sandia.gov"}
+  {name = "Luca Bertagna", email = "lbertag@sandia.gov"},
+  {name = "James Foucar",  email = "jgfouca@sandia.gov"}
 ]
 readme = "README.md"
 keywords = ["testing", "cmake", "configurations"]
