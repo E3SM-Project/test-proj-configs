@@ -214,7 +214,7 @@ class TestProjConfigs(object):
         # If non-empty, run these env setup cmds BEFORE running any command
         env_setup = " && ".join(self._machine.env_setup)
 
-        log_file = f"{logs_dir}/LastConfig.log"
+        log_file = f"{logs_dir}/LastConfigure.log"
         cmd = f"{cmake_config}"
         stat, _, err = run_cmd(cmd,output_file=log_file,combine_output=True,
                                env_setup=env_setup,from_dir=build_dir, verbose=True)
@@ -308,7 +308,7 @@ class TestProjConfigs(object):
         env_setup = " && ".join(self._machine.env_setup)
 
         if not self._skip_config:
-            log_file = f"{logs_dir}/LastConfig.log"
+            log_file = f"{logs_dir}/LastConfigure.log"
             stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,
                                    output_file=log_file,combine_output=True,output_to_screen=self._verbose,
                                    from_dir=build_dir,verbose=True)
