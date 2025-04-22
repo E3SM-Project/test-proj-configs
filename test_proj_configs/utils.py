@@ -7,10 +7,7 @@ import sys
 import re
 import subprocess
 import psutil
-import site
 import argparse
-import importlib
-import importlib.util
 
 ###############################################################################
 def expect(condition, error_msg, exc_type=Exception, error_prefix="ERROR:"):
@@ -141,104 +138,6 @@ def check_minimum_python_version(major, minor):
     msg = "Python " + str(major) + ", minor version " + str(minor) + " is required, you have " + str(sys.version_info[0]) + "." + str(sys.version_info[1])
     expect(sys.version_info[0] > major or
            (sys.version_info[0] == major and sys.version_info[1] >= minor), msg)
-
-
-###############################################################################
-def ensure_pip():
-###############################################################################
-    """
-    Ensures that pip is available. Notice that we cannot use the _ensure_pylib_impl
-    function below, since it would cause circular dependencies. This one has to
-    be done by hand.
-    """
-    try:
-        import pip # pylint: disable=unused-import
-
-    except ModuleNotFoundError:
-        # Use ensurepip for installing pip
-        import ensurepip
-        ensurepip.bootstrap(user=True)
-
-        # needed to "rehash" available libs
-        site.main() # pylint: disable=no-member
-
-        import pip # pylint: disable=unused-import
-
-###############################################################################
-def pip_install_lib(pip_libname):
-###############################################################################
-    """
-    Ask pip to install a version of a package which is >= min_version
-    """
-    # Installs will use pip, so we need to ensure it is available
-    ensure_pip()
-
-    # Note: --trusted-host may not work for ancient versions of python
-    #       --upgrade makes sure we get the latest version, even if one is already installed
-    stat, _, err = run_cmd("{} -m pip install --upgrade {} --trusted-host files.pythonhosted.org --user".format(sys.executable, pip_libname))
-    expect(stat == 0, "Failed to install {}, cannot continue:\n{}".format(pip_libname, err))
-
-    # needed to "rehash" available libs
-    site.main() # pylint: disable=no-member
-
-###############################################################################
-def package_version_ok(pkg, min_version=None):
-###############################################################################
-    """
-    Checks that the loaded package's version is >= that the minimum required one.
-    If no minimum version is passed, then return True
-    """
-    if min_version is not None:
-        try:
-            from pkg_resources import parse_version
-
-            return parse_version(pkg.__version__) >= parse_version(min_version)
-        except ImportError:
-            # Newer versions of python cannot use pkg_resources
-            ensure_packaging()
-            from packaging.version import parse
-
-            return parse(pkg.__version__) >= parse(min_version)
-
-    else:
-        return True
-
-###############################################################################
-def _ensure_pylib_impl(libname, min_version=None, pip_libname=None):
-###############################################################################
-    """
-    Internal method, clients should not call this directly; please use of the
-    public ensure_XXX methods. If one does not exist, we will need to evaluate
-    if we want to add a new outside dependency.
-    """
-
-    install = False
-    try:
-        pkg = importlib.import_module(libname)
-
-        if not package_version_ok(pkg,min_version):
-            print("Detected version for package {} is too old: detected {}, required >= {}. Will attempt to upgrade the package locally".format(libname, pkg.__version__,min_version))
-            install = True
-
-    except ImportError:
-        print("Detected missing package {}. Will attempt to install locally".format(libname))
-        pip_libname = pip_libname if pip_libname else libname
-
-        install = True
-
-    if install:
-        pip_install_lib(pip_libname)
-        pkg = importlib.import_module(libname)
-
-    expect(package_version_ok(pkg,min_version),
-           "Error! Could not find version {} for package {}.".format(min_version,libname))
-
-# We've accepted these outside dependencies
-def ensure_yaml():      _ensure_pylib_impl("yaml", pip_libname="pyyaml",min_version='5.1')
-def ensure_pylint():    _ensure_pylib_impl("pylint")
-def ensure_psutil():    _ensure_pylib_impl("psutil")
-def ensure_netcdf4():   _ensure_pylib_impl("netCDF4")
-def ensure_packaging(): _ensure_pylib_impl("packaging")
 
 ###############################################################################
 class GoodFormatter(
