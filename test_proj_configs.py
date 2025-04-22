@@ -308,8 +308,8 @@ class TestProjConfigs(object):
         env_setup = " && ".join(self._machine.env_setup)
 
         if not self._skip_config:
-            stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,
-                                   from_dir=build_dir,verbose=self._verbose)
+            stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,output_to_screen=self._verbose,
+                                   from_dir=build_dir,verbose=True)
             if stat != 0:
                 print (f"WARNING: Failed to run tests (config phase):\n{err}")
                 return False
@@ -326,7 +326,8 @@ class TestProjConfigs(object):
                 resources = self.get_taskset_resources(build, for_compile)
                 cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
 
-            stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir, verbose=True)
+            stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir,
+                                   output_to_screen=self._verbose, verbose=True)
 
             if stat != 0:
                 print (f"WARNING: Failed to run tests (build phase):\n{err}")
@@ -344,8 +345,10 @@ class TestProjConfigs(object):
             cmd += f" -R {self._test_regex}"
         if self._test_labels:
             cmd += f" -L {self._test_labels}"
+        cmd += " --output-on-failure"
 
-        stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir, verbose=True)
+        stat, _, err = run_cmd(cmd, env_setup=env_setup, from_dir=build_dir,
+                               output_to_screen=self._verbose, verbose=True)
 
         if self._submit:
             run_cmd(f"ctest -S {self._root_dir}/CTestConfig.cmake --submit",

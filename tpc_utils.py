@@ -42,10 +42,6 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
     True
     """
 
-    expect (not (output_to_screen and output_file),
-            "Cannot redirect output both to screen and file.\n")
-    expect (not (error_to_screen and error_file),
-            "Cannot redirect errors both to screen and file.\n")
     expect (not (combine_output and (error_file or error_to_screen)),
             "Makes no sense to request combined output, and then provide a special handle for stderr.\n")
 
@@ -54,15 +50,14 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
     if env_setup:
         cmd = f"{env_setup} && {cmd}"
 
+    # When outputing to screen, it is much easier to listen to only one between
+    # stdout and stderr, so we force combine_output to be True
     if output_to_screen:
-        arg_stdout = None
-    else:
-        arg_stdout = subprocess.PIPE
+        combine_output=True
 
+    arg_stdout = subprocess.PIPE
     if combine_output:
         arg_stderr = subprocess.STDOUT
-    elif error_to_screen:
-        arg_stderr = None
     else:
         arg_stderr = subprocess.PIPE
 
@@ -79,17 +74,26 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
                             stdout=arg_stdout,
                             stderr=arg_stderr,
                             stdin=None,
+                            text=True, # automatically decode output bytes to string
                             cwd=from_dir)
 
-    output, errput = proc.communicate()
+    output = ""
+    errput = ""
 
-    if output:
-        output = output.decode('utf-8', errors='ignore')
-        output = output.strip()
+    if output_to_screen:
+        # We are forcing combined outpu, so just parse stdout
+        for line in iter(proc.stdout.readline,''):
+            output += line
+            print(line,end='')
+    else:
+        # Parse stdout and stderr separately
+        output, errput = proc.communicate()
 
-    if errput:
-        errput = errput.decode('utf-8', errors='ignore')
-        errput = errput.strip()
+        if output:
+            output = output.strip()
+
+        if errput:
+            errput = errput.strip()
 
     # If we need to write to file, do so
     if output_file:
