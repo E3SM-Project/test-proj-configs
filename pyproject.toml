@@ -1,0 +1,21 @@
+[project]
+name = "test_proj_configs"
+version = "0.1"
+description = "A framework for configure unit testing of a cmake-based project"
+requires-python = ">=3.6"
+dependencies = ["pyyaml", "psutil"]
+authors = [
+  {name = "Luca Bertagna", email = "lbertag@sandia.gov"}
+]
+maintainers = [
+  {name = "Luca Bertagna", email = "lbertag@sandia.gov"}
+]
+readme = "README.md"
+keywords = ["testing", "cmake", "configurations"]
+
+[project.scripts]
+test-proj-configs = "test_proj_configs.test_proj_configs:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -1,4 +1,4 @@
-from utils import expect
+from .utils import expect
 
 ###############################################################################
 class Project(object):

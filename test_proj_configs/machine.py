@@ -2,7 +2,7 @@ import pathlib
 import socket
 import re
 
-from utils import expect, get_available_cpu_count, expand_variables
+from .utils import expect, get_available_cpu_count, expand_variables
 
 ###############################################################################
 class Machine(object):
