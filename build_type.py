@@ -16,7 +16,7 @@ class BuildType(object):
                 f"BuildType constructor expects a dict object for 'builds_specs' (got {type(builds_specs)} instead).\n")
         expect (name in builds_specs.keys(),
                 f"BuildType '{name}' not found in the 'build_types' section of the config file.\n"
-                f" - available build types: {','.join(b for b in builds_specs.keys() if b!="default")}\n")
+                f" - available build types: {','.join(b for b in builds_specs.keys() if b!='default')}\n")
 
         # Get props for this build type and for a default build
         props   = builds_specs[name]

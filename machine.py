@@ -32,7 +32,7 @@ class Machine(object):
         else:
             expect (name in machines_specs.keys(),
                     f"Machine '{name}' not found in the 'machines' section of the config file.\n"
-                    f" - available machines: {','.join(m for m in machines_specs.keys() if m!="default")}\n")
+                    f" - available machines: {','.join(m for m in machines_specs.keys() if m!='default')}\n")
 
         # Get props for this machine and for a default machine
         props   = machines_specs[name]
