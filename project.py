@@ -1,4 +1,4 @@
-from tpc_utils import expect
+from utils import expect
 
 ###############################################################################
 class Project(object):

@@ -1,6 +1,6 @@
 import re
 
-from tpc_utils import expect, expand_variables
+from utils import expect, expand_variables
 
 ###############################################################################
 class BuildType(object):
