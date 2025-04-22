@@ -515,10 +515,10 @@ class TestProjConfigs(object):
         configs = content['configurations']
 
         # Build Project
-        self._project = Project(proj)
+        self._project = Project(proj,self._root_dir)
 
         # Build Machine
-        self._machine = Machine(machine_name,machs)
+        self._machine = Machine(machine_name,self._project,machs)
 
         # Get builds
         if builds_types:

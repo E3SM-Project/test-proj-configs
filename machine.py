@@ -2,7 +2,7 @@ import pathlib
 import socket
 import re
 
-from tpc_utils import expect, get_available_cpu_count
+from tpc_utils import expect, get_available_cpu_count, expand_variables
 
 ###############################################################################
 class Machine(object):
@@ -11,7 +11,7 @@ class Machine(object):
     Parent class for objects describing a machine to use for EAMxx standalone testing.
     """
 
-    def __init__ (self,name,machines_specs):
+    def __init__ (self,name,project,machines_specs):
         # Check inputs
         expect (isinstance(machines_specs,dict),
                 f"Machine constructor expects a dict object for 'machines_specs' (got {type(machines_specs)} instead).\n")
@@ -52,9 +52,14 @@ class Machine(object):
         self.baselines_dir = props.get("baselines_dir",None)
         self.valg_supp_file = props.get("valg_supp_file",None)
 
+        # Perform substitution of ${..} strings
+        objects = {
+            'project' : project,
+            'machine' : self,
+        }
+        expand_variables(self,objects)
+
         # Check props are valid
-        print(f"mach file: {self.mach_file}")
-        print(f"mach file exists: {pathlib.Path(self.mach_file).expanduser().exists()}")
         expect (self.mach_file is None or pathlib.Path(self.mach_file).expanduser().exists(),
                 f"Invalid/non-existent machine file '{self.mach_file}'")
         expect (isinstance(self.env_setup,list),

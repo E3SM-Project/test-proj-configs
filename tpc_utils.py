@@ -319,3 +319,46 @@ class SharedArea(object):
     def __exit__(self, *_):
         os.umask(self._orig_umask)
 
+###############################################################################
+def expand_variables(tgt_obj, src_obj_dict):
+###############################################################################
+
+    # Only user-defined types have the __dict__ attribute
+    if hasattr(tgt_obj,'__dict__'):
+        for name,val in vars(tgt_obj).items():
+            setattr(tgt_obj,name,expand_variables(val,src_obj_dict))
+
+    elif isinstance(tgt_obj,dict):
+        for name,val in tgt_obj.items():
+            tgt_obj[name] = expand_variables(val,src_obj_dict)
+
+    elif isinstance(tgt_obj,list):
+        for i,val in enumerate(tgt_obj):
+            tgt_obj[i] = expand_variables(val,src_obj_dict)
+
+    elif isinstance(tgt_obj,str):
+        pattern = r'\$\{(\w+)\.(\w+)\}'
+
+        matches = re.findall(pattern,tgt_obj)
+        for obj_name, att_name in matches:
+            expect (obj_name in src_obj_dict.keys(),
+                    f"Invalid configuration ${{{obj_name}.{att_name}}}. Must be ${{obj.attr}}, with obj in {src_obj_dict.keys()}")
+            obj = src_obj_dict[obj_name]
+
+            try:
+                value = getattr(obj,att_name)
+                expect (not value is None,
+                        f"Cannot use attribute {obj_name}.{att_name} in configuration, since it is None.\n")
+                value_str = str(value)
+                old = tgt_obj
+                tgt_obj = tgt_obj.replace(f"${{{obj_name}.{att_name}}}",value_str)
+            except AttributeError:
+                print (f"{obj_name} has no attribute '{att_name}'\n")
+                print (f"  - existing attributes: {dir(obj)}\n")
+                raise
+
+        expect (not re.findall(pattern,tgt_obj),
+                f"Something went wrong while replacing ${{..}} patterns in string '{tgt_obj}'\n")
+
+    return tgt_obj
+

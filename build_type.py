@@ -1,6 +1,6 @@
 import re
 
-from tpc_utils import expect
+from tpc_utils import expect, expand_variables
 
 ###############################################################################
 class BuildType(object):
@@ -28,11 +28,6 @@ class BuildType(object):
         self.description = props.get('description',None)
         self.uses_baselines = props.get('uses_baselines',None) or default.get('uses_baselines',True)
         self.on_by_default  = props.get('on_by_default',None) or default.get('on_by_default',True)
-
-        cmake_args         = props.get('cmake_args',[])   # Store in temps, since we need
-        default_cmake_args = default.get('cmake_args',[]) # to combine these two after validating
-
-        # Validate props
         expect (isinstance(self.uses_baselines,bool),
                 "Invalid value for uses_baselines.\n"
                 f"  - build name: {shortname}\n"
@@ -45,61 +40,28 @@ class BuildType(object):
                 f"  - input value: {self.on_by_default}\n"
                 f"  - input type: {type(self.on_by_default)}\n"
                  "  - expected type: bool\n")
-        expect (isinstance(cmake_args,dict),
-                "Invalid value for cmake_args.\n"
-                f"  - build name: {shortname}\n"
-                f"  - input value: {cmake_args}\n"
-                f"  - input type: {type(cmake_args)}\n"
-                 "  - expected type: list\n")
-        expect (isinstance(default_cmake_args,dict),
-                "Invalid value for cmake_args.\n"
-                f"  - build name: default\n"
-                f"  - input value: {default_cmake_args}\n"
-                f"  - input type: {type(default_cmake_args)}\n"
-                 "  - expected type: list\n")
 
-        print(f"default: {default_cmake_args}")
-        print(f"type: {type(default_cmake_args)}")
-        self.cmake_args = {}
-        for k,v in default_cmake_args.items():
-            self.cmake_args[k] = v
-        for k,v in cmake_args.items():
-            self.cmake_args[k] = v
+        expect (isinstance(props.get('cmake_args',{}),dict),
+                f"Invalid value for cmake_args for build type '{shortname}'.\n"
+                f"  - input value: {props['cmake_args']}\n"
+                f"  - input type: {type(props['cmake_args'])}\n"
+                 "  - expected type: dict\n")
+        expect (isinstance(default.get('cmake_args',{}),dict),
+                f"Invalid value for cmake_args for build type 'default'.\n"
+                f"  - input value: {default['cmake_args']}\n"
+                f"  - input type: {type(default['cmake_args'])}\n"
+                 "  - expected type: dict\n")
+        self.cmake_args = default.get('cmake_args',{})
+        self.cmake_args.update(props.get('cmake_args',{}))
 
         # Perform substitution of ${..} strings
-        pattern = r'\$\{(\w+)\.(\w+)\}'
         objects = {
             'project' : project,
             'machine' : machine,
             'build'   : self
         }
-        for k,v in self.cmake_args.items():
-            matches = re.findall(pattern,str(v))
-            for obj_name, att_name in matches:
-                expect (att_name!=k,
-                        f"Cannot use the value of {obj_name}.{k} to change its own value (no recursion allowed).\n")
+        expand_variables(self,objects)
 
-                expect (obj_name in objects.keys(),
-                        f"Invalid configuration ${{{obj_name}.{att_name}}}. Must be ${{obj.attr}}, with obj='project', 'machine', or 'build'")
-                obj = objects[obj_name]
-
-                try:
-
-                    value = getattr(obj,att_name)
-                    expect (not value is None,
-                            f"Cannot use attribute {obj_name}.{att_name} in configuration, since it is None.\n")
-                    value_str = str(value)
-                    v = v.replace(f"${{{obj_name}.{att_name}}}",value)
-                except AttributeError:
-                    print (f"{obj_name} has no attribute '{att_name}'\n")
-                    print (f"  - existing attributes: {dir(obj)}\n")
-                    raise
-
-            self.cmake_args[k] = v
-
-        #  print("after substitution:")
-        #  for k,v in self.cmake_args.items():
-        #      print(f" {k}: {v}")
         # Properties set at runtime by the TestProjBuild
         self.compile_res_count = None
         self.testing_res_count = None
