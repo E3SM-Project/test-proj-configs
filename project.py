@@ -24,4 +24,7 @@ class Project(object):
         # any file to the baselines directory
         self.baselines_summary_file = project_specs.get('baselines_summary_file',None)
 
+        # If the proj has a cmake var that can turn on/off baselines tests, we can use it
+        self.enable_baselines_cmake_option = project_specs.get('enable_baselines_cmake_option',None)
+
         self.root_dir = root_dir

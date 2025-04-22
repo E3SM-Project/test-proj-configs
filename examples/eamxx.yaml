@@ -35,6 +35,7 @@ project:
     name: EAMxx
     baseline_gen_label: baseline_gen
     baseline_summary_file: baseline_list
+    enable_baselines_cmake_option: SCREAM_ENABLE_BASELINE_TESTS
     # TBC will also set project.root_dir at runtime, so you can actually use
     # ${project.root_dir} in the machines/configurations sections
 
