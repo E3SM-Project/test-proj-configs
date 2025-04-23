@@ -10,7 +10,7 @@
 # that is set in the default entry (if any). It is recommended to keep the default
 # entry, since it can be used to list ALL possible settings, for documentation purposes.
 #
-# Upon parsing the yaml file, TBC will create one Project, one Machine, and one or
+# Upon parsing the yaml file, CACTS will create one Project, one Machine, and one or
 # more BuildType objects. These objects will contain members with *the same* name as the
 # configs in the yaml file. Notice the settings names are hard-coded, so you can't add
 # a new setting and hope that it gets set in the object.
@@ -23,7 +23,7 @@
 # the ${..} syntax, we recommend that you wrap the entry in quotes, to avoid any
 # surprise with YAML parsers.
 #
-# For the machines and configurations sections, TBC also parses for a 'default' entry,
+# For the machines and configurations sections, CACTS also parses for a 'default' entry,
 # which can be used to set "common" config options.
 #
 # Below, we show an example for the eamxx project, with a couple of machines
@@ -36,11 +36,11 @@ project:
     baseline_gen_label: baseline_gen
     baseline_summary_file: baseline_list
     enable_baselines_cmake_option: SCREAM_ENABLE_BASELINE_TESTS
-    # TBC will also set project.root_dir at runtime, so you can actually use
+    # CACTS will also set project.root_dir at runtime, so you can actually use
     # ${project.root_dir} in the machines/configurations sections
 
 machines:
-    # TBC will also set an entry machine.name, where the value of name matches the yaml map section name
+    # CACTS will also set an entry machine.name, where the value of name matches the yaml map section name
     default:
         cxx_compiler: mpicxx
         c_compiler: mpicc
@@ -62,7 +62,7 @@ machines:
         node_regex: mappy
 
 configurations:
-    # TBC will also set an entry build.name, where the value of name matches the yaml map section name
+    # CACTS will also set an entry build.name, where the value of name matches the yaml map section name
     default:
         longname: null # If not set, will default to build.name
         description: null
