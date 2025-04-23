@@ -47,7 +47,7 @@ class Driver(object):
         self._submit        = submit
         self._parallel      = parallel
         self._generate      = generate
-        self._baselines_dir  = baseline_dir
+        self._baselines_dir = baseline_dir
         self._cmake_args    = cmake_args
         self._work_dir      = pathlib.Path(work_dir or os.getcwd()+"/ctest-build").expanduser().absolute()
         self._verbose       = verbose
@@ -314,11 +314,10 @@ class Driver(object):
 
         self.create_ctest_resource_file(build,build_dir)
 
-        cmake_config = self.generate_cmake_config(build)
-
         print("===============================================================================")
         print(f"Running tests for build {build.longname}")
         if not self._skip_config:
+            cmake_config = self.generate_cmake_config(build)
             print(f"  cmake config: {cmake_config}")
         print("===============================================================================")
 
