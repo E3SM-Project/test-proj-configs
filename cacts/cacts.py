@@ -161,6 +161,8 @@ class Driver(object):
             print(f"Generating baselines from git ref '{git_ref}' (sha={git_sha})")
         else:
             print(f"Running tests for git ref '{git_ref}' (sha={git_sha}) on machine {self._machine.name}")
+
+        print(f"  active builds: {', '.join(b.name for b in self._builds)}")
         print("###############################################################################")
 
         success = True
@@ -569,8 +571,9 @@ class Driver(object):
                 if name=='default':
                     continue
                 build = BuildType(name,self._project,self._machine,configs)
+
                 # Skip non-baselines builds when generating baselines
-                if not self._generate or build.uses_baselines:
+                if (not self._generate or build.uses_baselines) and build.on_by_default:
                     self._builds.append(build)
 
 ###############################################################################

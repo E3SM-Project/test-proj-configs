@@ -238,30 +238,57 @@ def expand_variables(tgt_obj, src_obj_dict):
             tgt_obj[i] = expand_variables(val,src_obj_dict)
 
     elif isinstance(tgt_obj,str):
-        pattern = r'\$\{(\w+)\.(\w+)\}'
+        pattern = r'\$\{(\w+)\.(\w+)(.*?)\}'
 
         matches = re.findall(pattern,tgt_obj)
-        for obj_name, att_name in matches:
+        for obj_name, att_name, expression in matches:
             expect (obj_name in src_obj_dict.keys(),
                     f"Invalid configuration ${{{obj_name}.{att_name}}}. Must be ${{obj.attr}}, with obj in {src_obj_dict.keys()}")
             obj = src_obj_dict[obj_name]
+            expect (hasattr(obj,att_name),
+                    f"{obj_name} has no attribute '{att_name}'\n"
+                    f"  - existing attributes: {dir(obj)}\n")
 
+            eval_str = f"obj.{att_name}{expression}"
+            expect (safe_expression(expression),
+                    f"Cannot evaluate expression '{obj_name}.{att_name}{expression}'. A dangerous pattern was detected in the expression")
             try:
-                value = getattr(obj,att_name)
-                expect (not value is None,
-                        f"Cannot use attribute {obj_name}.{att_name} in configuration, since it is None.\n")
-                value_str = str(value)
-                old = tgt_obj
-                tgt_obj = tgt_obj.replace(f"${{{obj_name}.{att_name}}}",value_str)
+                result = eval(eval_str)
+                tgt_obj = tgt_obj.replace(f"${{{obj_name}.{att_name}{expression}}}",str(result))
             except AttributeError:
-                print (f"{obj_name} has no attribute '{att_name}'\n")
-                print (f"  - existing attributes: {dir(obj)}\n")
+                print (f"Could not evaluate expression {tgt_obj}.\n")
                 raise
 
         expect (not re.findall(pattern,tgt_obj),
                 f"Something went wrong while replacing ${{..}} patterns in string '{tgt_obj}'\n")
 
     return tgt_obj
+
+#########################################################
+def safe_expression(expression):
+#########################################################
+
+    # List of dangerous patterns
+    dangerous_patterns = [
+        r'\bimport\b',           # Import statements
+        r'\bexec\b',             # Exec statements
+        r'\beval\b',             # Eval statements
+        r'\bos\.system\b',       # OS system calls
+        r'\bsubprocess\.run\b',  # Subprocess calls
+        r'\bglobals\b',          # Globals access
+        r'\blocals\b',           # Locals access
+        r';',                    # Multiple statements
+        r'\bopen\b',             # File access
+        r'\bos\.getenv\b',       # Environment variable access
+        r'\b__\w+__\b'           # Catch all for any double underscore attributes
+    ]
+
+    # Check for any dangerous patterns
+    for pattern in dangerous_patterns:
+        if re.search(pattern, expression):
+            return False  # Unsafe expression
+    
+    return True  # Safe expression
 
 ###############################################################################
 def evaluate_commands(tgt_obj):
@@ -295,6 +322,17 @@ def evaluate_commands(tgt_obj):
             tgt_obj = tgt_obj.replace(f"$({cmd})",out)
 
     return tgt_obj
+
+###############################################################################
+def str_to_bool(s, var_name):
+###############################################################################
+    if s=="True":
+        return True
+    elif s=="False":
+        return False
+    else:
+        raise ValueError(f"Invalid value '{s}' for '{var_name}'.\n"
+                          "Should be either 'True' or 'False'")
 
 ###############################################################################
 def is_git_repo(repo=None):
