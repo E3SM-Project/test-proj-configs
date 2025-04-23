@@ -21,9 +21,8 @@ check_minimum_python_version(3, 4)
 ###############################################################################
 def main():
 ###############################################################################
-
-    driver = Driver(**vars(parse_command_line(sys.argv, __doc__)))
-
+    from . import __version__  # Import __version__ here to avoid circular import
+    driver = Driver(**vars(parse_command_line(sys.argv, __doc__, __version__)))
 
     success = driver.run()
 
@@ -577,7 +576,7 @@ class Driver(object):
                     self._builds.append(build)
 
 ###############################################################################
-def parse_command_line(args, description):
+def parse_command_line(args, description, version):
 ###############################################################################
     parser = argparse.ArgumentParser(
         usage="""\n{0} <ARGS> [--verbose]
@@ -634,5 +633,8 @@ OR
 
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Print output of config/build/test phases as they would be printed by running them manually.")
+
+    parser.add_argument("--version", action="version", version=f"%(prog)s {version}",
+                        help="Show the version number and exit")
 
     return parser.parse_args(args[1:])
