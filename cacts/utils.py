@@ -324,6 +324,17 @@ def evaluate_commands(tgt_obj):
     return tgt_obj
 
 ###############################################################################
+def str_to_bool(s, var_name):
+###############################################################################
+    if s=="True":
+        return True
+    elif s=="False":
+        return False
+    else:
+        raise ValueError(f"Invalid value '{s}' for '{var_name}'.\n"
+                          "Should be either 'True' or 'False'")
+
+###############################################################################
 def is_git_repo(repo=None):
 ###############################################################################
     """

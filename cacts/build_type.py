@@ -1,6 +1,6 @@
 import re
 
-from .utils import expect, expand_variables, evaluate_commands
+from .utils import expect, expand_variables, evaluate_commands, str_to_bool
 
 ###############################################################################
 class BuildType(object):
@@ -26,20 +26,12 @@ class BuildType(object):
         self.name   = name
         self.longname    = props.get('longname',name)
         self.description = props.get('description',None)
-        self.uses_baselines = props.get('uses_baselines',None) or default.get('uses_baselines',True)
-        self.on_by_default  = props.get('on_by_default',None) or default.get('on_by_default',True)
-        expect (isinstance(self.uses_baselines,bool),
-                "Invalid value for uses_baselines.\n"
-                f"  - build name: {name}\n"
-                f"  - input value: {self.uses_baselines}\n"
-                f"  - input type: {type(self.uses_baselines)}\n"
-                 "  - expected type: bool\n")
-        expect (isinstance(self.on_by_default,bool),
-                "Invalid value for on_by_default.\n"
-                f"  - build name: {name}\n"
-                f"  - input value: {self.on_by_default}\n"
-                f"  - input type: {type(self.on_by_default)}\n"
-                 "  - expected type: bool\n")
+        self.uses_baselines = props.get('uses_baselines',None)
+        self.on_by_default  = props.get('on_by_default',None)
+        if  self.uses_baselines is None:
+            self.uses_baselines = default.get('uses_baselines',True)
+        if  self.on_by_default is None:
+            self.on_by_default  = default.get('on_by_default',True)
 
         expect (isinstance(props.get('cmake_args',{}),dict),
                 f"Invalid value for cmake_args for build type '{name}'.\n"
@@ -64,6 +56,12 @@ class BuildType(object):
 
         # Evaluate remaining bash commands of the form $(...)
         evaluate_commands(self)
+
+        # After vars expansion, these two must be convertible to bool
+        if type(self.uses_baselines) is str:
+            self.uses_baselines = str_to_bool(self.uses_baselines,f"{name}.uses_baselines")
+        if type(self.on_by_default) is str:
+            self.on_by_default  = str_to_bool(self.on_by_default,f"{name}.on_by_default")
 
         # Properties set at runtime by the TestProjBuild
         self.compile_res_count = None
