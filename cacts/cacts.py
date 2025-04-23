@@ -21,16 +21,18 @@ check_minimum_python_version(3, 4)
 ###############################################################################
 def main():
 ###############################################################################
-    tpc = TestProjConfigs(**vars(parse_command_line(sys.argv, __doc__)))
 
-    success = tpc.run()
+    driver = Driver(**vars(parse_command_line(sys.argv, __doc__)))
+
+
+    success = driver.run()
 
     print("OVERALL STATUS: {}".format("PASS" if success else "FAIL"))
 
     sys.exit(0 if success else 1)
 
 ###############################################################################
-class TestProjConfigs(object):
+class Driver(object):
 ###############################################################################
 
     ###########################################################################
@@ -90,7 +92,7 @@ class TestProjConfigs(object):
         #  Parse the project config file  #
         ###################################
 
-        config_file = pathlib.Path(config_file or self._root_dir / "test_proj_configs.yaml")
+        config_file = pathlib.Path(config_file or self._root_dir / "cacts.yaml")
         expect (config_file.exists(),
                 f"Could not find/open config file: {config_file}\n")
 

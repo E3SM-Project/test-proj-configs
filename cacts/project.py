@@ -22,7 +22,7 @@ class Project(object):
 
         # Projects can dump in this file (relative to cmake build dir) the list of
         # baselines files that need to be copied to the baseline dir. This allows
-        # TPC to ensure that ALL baselines tests complete sucessfully before copying
+        # CACTS to ensure that ALL baselines tests complete sucessfully before copying
         # any file to the baselines directory
         self.baselines_summary_file = project_specs.get('baselines_summary_file',None)
 

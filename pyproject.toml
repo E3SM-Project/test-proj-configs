@@ -1,22 +1,24 @@
 [project]
-name = "test_proj_configs"
+name = "cacts"
 version = "0.1"
-description = "A framework for configure unit testing of a cmake-based project"
+description = "A framework for configurable unit testing of a cmake-based project"
 requires-python = ">=3.6"
 dependencies = ["pyyaml", "psutil"]
 authors = [
   {name = "Luca Bertagna", email = "lbertag@sandia.gov"},
+  {name = "Naser Mahfouz", email = "naser.mahfouzpnnl.gov"},
   {name = "James Foucar",  email = "jgfouca@sandia.gov"}
 ]
 maintainers = [
   {name = "Luca Bertagna", email = "lbertag@sandia.gov"},
   {name = "James Foucar",  email = "jgfouca@sandia.gov"}
+  {name = "Naser Mahfouz", email = "naser.mahfouzpnnl.gov"},
 ]
 readme = "README.md"
-keywords = ["testing", "cmake", "configurations"]
+keywords = ["testing", "cmake"]
 
 [project.scripts]
-test-proj-configs = "test_proj_configs.test_proj_configs:main"
+cacts = "cacts.cacts:main"
 
 [build-system]
 requires = ["setuptools", "wheel"]
