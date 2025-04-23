@@ -61,8 +61,8 @@ class Driver(object):
         self._machine       = None
         self._builds        = []
 
-        if not self._work_dir.exists():
-            self._work_dir.mkdir()
+        # Ensure work dir exists
+        self._work_dir.mkdir(parents=True,exist_ok=True)
 
         ###################################
         #  Parse the project config file  #
@@ -87,7 +87,7 @@ class Driver(object):
 
         # We print some git sha info (as well as store it in baselines) so make sure we are in a git repo
         expect(is_git_repo(self._root_dir),
-               f"Root dir: {self._root_dir}, does not appear to be a git repo")
+               f"Root dir: {self._root_dir}, does not appear to be a git repo. Did you forget to pass -r <repo-root>?")
 
         # If we submit, we must a) not be generating, and b) be able to find the CTestConfig.cmake script in the root dir
         if self._submit:
