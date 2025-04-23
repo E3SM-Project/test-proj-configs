@@ -69,12 +69,12 @@ class Machine(object):
                 f"machine->env_setup should be a list of strings (got {type(self.env_setup)} instead).\n")
 
         try:
-            self.num_bld_res = int(props.get('num_bld_res',None) or get_available_cpu_count())
+            self.num_bld_res = int(props.get('num_bld_res',None))
         except ValueError as e:
             print(f"Cannot convert 'num_bld_res' entry to an integer. Please, fix the config file.\n")
             raise
         try:
-            self.num_run_res = int(props.get('num_run_res',None) or get_available_cpu_count())
+            self.num_run_res = int(props.get('num_run_res',None))
         except ValueError as e:
             print(f"Cannot convert 'num_run_res' entry to an integer. Please, fix the config file.\n")
             raise
