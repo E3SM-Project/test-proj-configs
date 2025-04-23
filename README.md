@@ -1,4 +1,4 @@
-# Test Project Configurations
+# CACTS: Cmake Application Configurable Testing System
 
 A set of python scripts (derived from EAMxx's testing infrastructure) that describe
 the unit testing of a project, abstracting concepts such as machine or build type.
