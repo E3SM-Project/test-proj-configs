@@ -482,12 +482,18 @@ class Driver(object):
         if self._machine.ftn_compiler is not None:
             result += f" -DCMAKE_Fortran_COMPILER={self._machine.ftn_compiler}"
 
-        if self._project.enable_baselines_cmake_option:
-            # The project has a cmake var for enabling baselines tests
-            # We enable them only if baselines were requested
+        if self._project.enable_baselines_cmake_var:
+            # The project has a cmake var for enabling baselines code/tests
+            # We enable them if baselines were requested
             value = "ON" if self._baselines_dir else "OFF"
-            result += f" -D{self._project.enable_baselines_cmake_option}={value}"
-            print(f"setting {self._project.enable_baselines_cmake_option} to {value}")
+            result += f" -D{self._project.enable_baselines_cmake_var}={value}"
+            print(f"setting {self._project.enable_baselines_cmake_var} to {value}")
+        elif self._project.disable_baselines_cmake_var:
+            # The project has a cmake var for disabling baselines code/tests
+            # We disable them if baselines were NOT requested
+            value = "OFF" if self._baselines_dir else "ON"
+            result += f" -D{self._project.disable_baselines_cmake_var}={value}"
+            print(f"setting {self._project.disable_baselines_cmake_var} to {value}")
 
         # User-requested config options
         for arg in self._cmake_args:
