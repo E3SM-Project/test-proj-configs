@@ -571,8 +571,9 @@ class Driver(object):
                 if name=='default':
                     continue
                 build = BuildType(name,self._project,self._machine,configs)
+
                 # Skip non-baselines builds when generating baselines
-                if not self._generate or build.uses_baselines:
+                if (not self._generate or build.uses_baselines) and build.on_by_default:
                     self._builds.append(build)
 
 ###############################################################################
