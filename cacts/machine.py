@@ -1,3 +1,8 @@
+"""
+This module defines a Machine object, which stores properties and settings
+for a testing machine to be used by CACTS
+"""
+
 import pathlib
 import socket
 import re
@@ -5,7 +10,7 @@ import re
 from .utils import expect, get_available_cpu_count, expand_variables, evaluate_commands
 
 ###############################################################################
-class Machine(object):
+class Machine:
 ###############################################################################
     """
     Parent class for objects describing a machine to use for EAMxx standalone testing.
@@ -14,7 +19,8 @@ class Machine(object):
     def __init__ (self,name,project,machines_specs):
         # Check inputs
         expect (isinstance(machines_specs,dict),
-                f"Machine constructor expects a dict object for 'machines_specs' (got {type(machines_specs)} instead).\n")
+                "Machine constructor expects a dict object for 'machines_specs'"
+                "  - type(machine_specs): {type(machines_specs)}.\n")
         if name is None:
             hostname = socket.gethostname()
             # Loop over machines, and see if there's one whose 'node_regex' matches the hostname
@@ -28,11 +34,13 @@ class Machine(object):
                                 f"  - mach 2: {mn}\n")
                         name = mn
             expect (name is not None,
-                    f"Machine name was not provided, and none of the machines' node_regex matches hostname={hostname}\n")
+                    "Machine name was not provided, and none of the machines' node_regex "
+                    f"matches hostname={hostname}\n")
         else:
-            expect (name in machines_specs.keys(),
+            avail_machs = machine_specs.keys()
+            expect (name in avail_machs,
                     f"Machine '{name}' not found in the 'machines' section of the config file.\n"
-                    f" - available machines: {','.join(m for m in machines_specs.keys() if m!='default')}\n")
+                    f" - available machines: {','.join(m for m in avail_machs if m!='default')}\n")
 
         # Get props for this machine and for a default machine
         props   = machines_specs[name]
