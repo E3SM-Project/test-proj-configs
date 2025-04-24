@@ -21,9 +21,8 @@ check_minimum_python_version(3, 4)
 ###############################################################################
 def main():
 ###############################################################################
-
-    driver = Driver(**vars(parse_command_line(sys.argv, __doc__)))
-
+    from . import __version__  # Import __version__ here to avoid circular import
+    driver = Driver(**vars(parse_command_line(sys.argv, __doc__, __version__)))
 
     success = driver.run()
 
@@ -275,8 +274,8 @@ class Driver(object):
             return False
 
         # Read list of nc files to copy to baseline dir
-        if self._machine.baselines_summary_file is not None:
-            with open(build_dir/self._machine.baselines_summary_file,"r",encoding="utf-8") as fd:
+        if self._project.baselines_summary_file is not None:
+            with open(build_dir/self._project.baselines_summary_file,"r",encoding="utf-8") as fd:
                 files = fd.read().splitlines()
 
                 with SharedArea():
@@ -583,7 +582,7 @@ class Driver(object):
                     self._builds.append(build)
 
 ###############################################################################
-def parse_command_line(args, description):
+def parse_command_line(args, description, version):
 ###############################################################################
     parser = argparse.ArgumentParser(
         usage="""\n{0} <ARGS> [--verbose]
@@ -607,14 +606,18 @@ OR
                         help=f"Only run specific test configurations")
 
     parser.add_argument("-w", "--work-dir",
-        help="The work directory where all the building/testing will happen. Defaults to ${root_dir}/ctest-build")
+        help="The work directory where all the building/testing will happen. "
+             "Defaults to ${root_dir}/ctest-build")
     parser.add_argument("-r", "--root-dir",
         help="The root directory of the project (where the main CMakeLists.txt file is located)")
     parser.add_argument("-b", "--baseline-dir",
-        help="Directory where baselines should be read/written from/to (depending if -g is used). Default is None which skips all baseline tests. AUTO means use machine-defined folder.")
+        help="Directory where baselines should be read/written from/to (depending if -g is used). "
+             "Default is None which skips all baseline tests. AUTO means use machine-defined folder.")
 
     parser.add_argument("-c", "--cmake-args", action="extend", default=[],
-            help="Extra custom options to pass to cmake. Can use multiple times for multiple cmake options. The -D is added for you, so just do VAR=VALUE. These value will supersed any other setting (including machine/build specs)")
+            help="Extra custom options to pass to cmake. Can use multiple times for multiple cmake options. "
+                 "The -D is added for you, so just do VAR=VALUE. These value will supersed any other setting "
+                 "(including machine/build specs)")
     parser.add_argument("-R", "--test-regex",
                         help="Limit ctest to running only tests that match this regex")
     parser.add_argument("-L", "--test-labels", nargs='+', default=[],
@@ -627,9 +630,11 @@ OR
             help="Only run config and build steps, skip tests (implies --no-build)")
 
     parser.add_argument("--skip-config", action="store_true",
-            help="Skip cmake phase, pass directly to build. Requires the build directory to exist, and will fail if cmake phase never completed in that dir.")
+            help="Skip cmake phase, pass directly to build. Requires the build directory to exist, "
+                 "and will fail if cmake phase never completed in that dir.")
     parser.add_argument("--skip-build", action="store_true",
-            help="Skip build phase, pass directly to test. Requires the build directory to exist, and will fail if build phase never completed in that dir (implies --skip-config).")
+            help="Skip build phase, pass directly to test. Requires the build directory to exist, "
+                 "and will fail if build phase never completed in that dir (implies --skip-config).")
 
     parser.add_argument("-g", "--generate", action="store_true",
         help="Instruct test-all-eamxx to generate baselines from current commit. Skips tests")
@@ -639,6 +644,9 @@ OR
                         help="Launch the different build types stacks in parallel")
 
     parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Print output of config/build/test phases as they would be printed by running them manually.")
+        help="Print output of config/build/test phases as they would be printed by running them manually.")
+
+    parser.add_argument("--version", action="version", version=f"%(prog)s {version}",
+                        help="Show the version number and exit")
 
     return parser.parse_args(args[1:])
