@@ -3,3 +3,5 @@
 uv.lock
 ctest-build
 dist
+.pytest_cache
+__pycache__
