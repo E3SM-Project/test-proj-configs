@@ -61,6 +61,19 @@ class Driver(object):
         self._machine       = None
         self._builds        = []
 
+        # Ensure work dir exists
+        self._work_dir.mkdir(parents=True,exist_ok=True)
+
+        ###################################
+        #  Parse the project config file  #
+        ###################################
+
+        config_file = pathlib.Path(config_file or self._root_dir / "cacts.yaml")
+        expect (config_file.exists(),
+                f"Could not find/open config file: {config_file}\n")
+
+        self.parse_config_file(config_file,machine_name,build_types)
+
         ###################################
         #          Sanity Checks          #
         ###################################
@@ -74,29 +87,16 @@ class Driver(object):
 
         # We print some git sha info (as well as store it in baselines) so make sure we are in a git repo
         expect(is_git_repo(self._root_dir),
-               f"Root dir: {self._root_dir}, does not appear to be a git repo")
+               f"Root dir: {self._root_dir}, does not appear to be a git repo. Did you forget to pass -r <repo-root>?")
 
         # If we submit, we must a) not be generating, and b) be able to find the CTestConfig.cmake script in the root dir
         if self._submit:
             expect (not self._generate,
                     "Cannot submit to cdash when generating baselines. Re-run without -g.")
 
-            ctest_config = self._root_dir / "CTestConfig.cmake"
-            expect (ctest_config.exists(),
-                    f"Cannot submit to cdash. CTestConfig.cmake was not found in root_dir={self._root_dir}")
-
-        if not self._work_dir.exists():
-            self._work_dir.mkdir()
-
-        ###################################
-        #  Parse the project config file  #
-        ###################################
-
-        config_file = pathlib.Path(config_file or self._root_dir / "cacts.yaml")
-        expect (config_file.exists(),
-                f"Could not find/open config file: {config_file}\n")
-
-        self.parse_config_file(config_file,machine_name,build_types)
+            # Check all cdash settings are valid in the project
+            expect (self._project.cdash.get('url',None),
+                    "Cannot submit to cdash, since project.cdash.url is not set. Please fix your yaml config file.\n")
 
         ###################################
         #      Compute baseline info      #
@@ -376,8 +376,14 @@ class Driver(object):
                                from_dir=build_dir,verbose=True)
 
         if self._submit:
-            run_cmd(f"ctest -S {self._root_dir}/CTestConfig.cmake --submit",
-                    from_dir=self._root_dir,verbose=True)
+            cmd = "ctest -D Experimental"
+            cmd += f" --project {self._project.cdash.get('project',self._project.name)}"
+            cmd += f" --submit {self._project.cdash['url']}"
+            cmd += f" --build {self._project.cdash.get('build_prefix','')+build.longname}"
+            cmd += f" --track {self._project.cdash['track']}" if 'track' in self._project.cdash.keys() else ""
+            cmd += f" --drop-site {self._machine.name}"
+
+            run_cmd(cmd,from_dir=self._root_dir,verbose=True)
 
         if stat != 0:
             print (f"WARNING: Failed to run tests (run phase):\n{err}")
