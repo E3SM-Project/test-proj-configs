@@ -18,11 +18,24 @@ class BuildType(object):
                 f"BuildType '{name}' not found in the 'build_types' section of the config file.\n"
                 f" - available build types: {','.join(b for b in builds_specs.keys() if b!='default')}\n")
 
+        self.name = name
+
+        # Init everything to None
+        self.longname       = None
+        self.description    = None
+        self.uses_baselines = None
+        self.on_by_default  = None
+        self.cmake_args     = None
+        self.inherits       = None
+
+        # Set parameter, first using the 'default' build (if any), then this build's settings
+        # Note: if this build inherits from B2, B2's settings will be parsed first
+        self.update_params(builds_specs,'default')
+        self.update_params(builds_specs,name)
+
         # Get props for this build type and for a default build
         props   = builds_specs[name]
         default = builds_specs.get('default',{})
-
-        # Set build props
         self.name   = name
         self.longname    = props.get('longname',name)
         self.description = props.get('description',None)
@@ -67,3 +80,10 @@ class BuildType(object):
         self.compile_res_count = None
         self.testing_res_count = None
         self.baselines_missing = False
+
+    def update_params(self,builds_specs,name):
+        if name in builds_specs.keys():
+            props = builds_specs[name]
+            if 'inherits' in props.keys():
+                self.update_params(builds_specs,props['inherits'])
+            self.__dict__.update(props)
