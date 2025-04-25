@@ -66,10 +66,9 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
         output = output.strip()
     if errput is not None:
         errput = errput.strip()
+    proc.wait()
 
-    stat = proc.wait()
-
-    return stat, output, errput
+    return proc.returncode, output, errput
 
 ###############################################################################
 def run_cmd_no_fail(cmd, from_dir=None, verbose=None, dry_run=False,env_setup=None,
