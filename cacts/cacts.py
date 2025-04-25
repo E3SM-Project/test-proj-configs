@@ -36,7 +36,7 @@ class Driver(object):
 
     ###########################################################################
     def __init__(self, config_file=None,
-                 machine_name=None, build_types=None,
+                 machine_name=None, local=False, build_types=None,
                  work_dir=None, root_dir=None, baseline_dir=None,
                  cmake_args=None, test_regex=None, test_labels=None,
                  config_only=False, build_only=False, skip_config=False, skip_build=False,
@@ -60,6 +60,7 @@ class Driver(object):
         self._machine       = None
         self._builds        = []
         self._config_file   = pathlib.Path(config_file or self._root_dir / "cacts.yaml")
+        self._local         = local
 
         # Ensure work dir exists
         self._work_dir.mkdir(parents=True,exist_ok=True)
@@ -159,7 +160,7 @@ class Driver(object):
 
         print("###############################################################################")
         action = "Generating baselines" if self._generate else "Running tests"
-        print(f"{action} with git ref '{git_ref}' (sha={git_sha}) on machine {self._machine.name}")
+        print(f"{action} with git ref '{git_ref}' (sha={git_sha}) on machine '{self._machine.name}'")
         if self._baselines_dir:
             print(f"  Baselines directory: {self._baselines_dir}")
         print(f"  Active builds: {', '.join(b.name for b in self._builds)}")
@@ -525,6 +526,12 @@ class Driver(object):
         machs = content['machines']
         configs = content['configurations']
 
+        if self._local:
+            local_yaml = pathlib.Path("~/.cime/cacts.yaml").expanduser()
+            local_content = yaml.load(open(local_yaml,'r'),Loader=yaml.SafeLoader)
+            machs.update(local_content['machines'])
+            machine_name = 'local'
+
         # Build Project
         self._project = Project(proj,self._root_dir)
 
@@ -570,6 +577,9 @@ OR
 
     parser.add_argument("-m", "--machine-name",
         help="The name of the machine where we're testing. Must be found in machine_specs.py")
+    parser.add_argument("-l", "--local", action="store_true",
+        help="Allow to look for machine configuration in ~/.cime/catcs.yaml. "
+             "The file should contain the machines section, with a machine called 'local'.")
     parser.add_argument("-t", "--build-types", action="extend", nargs='+', default=[],
                         help=f"Only run specific test configurations")
 
