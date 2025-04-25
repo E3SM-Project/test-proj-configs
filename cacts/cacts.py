@@ -586,9 +586,9 @@ OR
             help="Extra custom options to pass to cmake. Can use multiple times for multiple cmake options. "
                  "The -D is added for you, so just do VAR=VALUE. These value will supersed any other setting "
                  "(including machine/build specs)")
-    parser.add_argument("-R", "--test-regex",
+    parser.add_argument("--test-regex",
                         help="Limit ctest to running only tests that match this regex")
-    parser.add_argument("-L", "--test-labels", nargs='+', default=[],
+    parser.add_argument("--test-labels", nargs='+', default=[],
                         help="Limit ctest to running only tests that match this label")
 
 
