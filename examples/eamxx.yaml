@@ -35,12 +35,17 @@ project:
     name: EAMxx
     baseline_gen_label: baseline_gen
     baseline_summary_file: baseline_list
-    enable_baselines_cmake_option: SCREAM_ENABLE_BASELINE_TESTS
+    cmake_vars_names:
+      enable_baselines:
+          SCREAM_ENABLE_BASELINE_TESTS: ON
+      generate_baselines: 
+          SCREAM_ONLY_GENERATE_BASELINES: ON
+      baselines_dir: SCREAM_BASELINES_DIR
     cdash:
-      drop_site: my.cdash.org
-      drop_location: submit.php?project=E3SM
-      build_prefix: scream_unit_tests_  # Optional. Final value of is this plus ${build.name}
-      curl_disable_ssl: True
+        drop_site: my.cdash.org
+        drop_location: submit.php?project=E3SM
+        build_prefix: scream_unit_tests_  # Optional. Final value of is this plus ${build.name}
+        curl_disable_ssl: True
     # CACTS will also set project.root_dir at runtime, so you can actually use
     # ${project.root_dir} in the machines/configurations sections
 
