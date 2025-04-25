@@ -105,7 +105,7 @@ class Driver(object):
         ###################################
 
         if self._baselines_dir:
-            if self._baselines_dir == "AUTO":
+            if self._baselines_dir.casefold() == "AUTO".casefold():
                 self._baselines_dir = pathlib.Path(self._machine.baselines_dir).expanduser().absolute()
             else:
                 self._baselines_dir = pathlib.Path(self._baselines_dir).expanduser().absolute()
