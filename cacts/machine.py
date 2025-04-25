@@ -20,7 +20,7 @@ class Machine:
         # Check inputs
         expect (isinstance(machines_specs,dict),
                 "Machine constructor expects a dict object for 'machines_specs'"
-                "  - type(machine_specs): {type(machines_specs)}.\n")
+                "  - type(machines_specs): {type(machines_specs)}.\n")
         if name is None:
             hostname = socket.gethostname()
             # Loop over machines, and see if there's one whose 'node_regex' matches the hostname
@@ -37,7 +37,7 @@ class Machine:
                     "Machine name was not provided, and none of the machines' node_regex "
                     f"matches hostname={hostname}\n")
         else:
-            avail_machs = machine_specs.keys()
+            avail_machs = machines_specs.keys()
             expect (name in avail_machs,
                     f"Machine '{name}' not found in the 'machines' section of the config file.\n"
                     f" - available machines: {','.join(m for m in avail_machs if m!='default')}\n")
