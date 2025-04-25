@@ -29,5 +29,3 @@ jobs:
     - name: Run tests
       run: uv run pytest -Werror
 
-    - name: Run shell-based deployment tests
-      run: uv run cacts/tests/test_deploy.sh

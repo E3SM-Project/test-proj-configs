@@ -8,6 +8,7 @@ import re
 import subprocess
 import psutil
 import argparse
+import platform
 
 ###############################################################################
 def expect(condition, error_msg, exc_type=RuntimeError, error_prefix="ERROR:"):
@@ -159,13 +160,11 @@ def get_available_cpu_count(logical=True):
     if 'SLURM_CPU_BIND_LIST' in os.environ:
         cpu_count = len(get_cpu_ids_from_slurm_env_var())
     else:
-        cpu_count = len(psutil.Process().cpu_affinity())
-
-    if not logical:
-        hyperthread_ratio = logical_cores_per_physical_core()
-        return int(cpu_count / hyperthread_ratio)
-    else:
-        return cpu_count
+        if platform.system() == "Darwin":  # macOS
+            cpu_count = os.cpu_count()  # Fallback for macOS
+        else:
+            cpu_count = len(psutil.Process().cpu_affinity())
+    return cpu_count
 
 ###############################################################################
 class SharedArea(object):
