@@ -190,19 +190,19 @@ class Driver(object):
                 last_build  = self.get_last_ctest_file(b,"Build")
                 last_config = self.get_last_ctest_file(b,"Configure")
                 if last_submit is not None:
-                    print(f"Build type {b} failed at submit time. Here's the content of {last_submit}:")
+                    print(f"Build type {b.longname} failed at submit time. Here's the content of {last_submit}:")
                     print (last_submit.read_text())
                 if last_test is not None:
-                    print(f"Build type {b} failed at testing time. Here's the content of {last_test}:")
+                    print(f"Build type {b.longname} failed at testing time. Here's the content of {last_test}:")
                     print (last_test.read_text())
                 elif last_build is not None:
-                    print(f"Build type {b} failed at build time. Here's the content of {last_build}:")
+                    print(f"Build type {b.longname} failed at build time. Here's the content of {last_build}:")
                     print (last_build.read_text())
                 elif last_config is not None:
-                    print(f"Build type {b} failed at config time. Here's the content of {last_config}:")
+                    print(f"Build type {b.longname} failed at config time. Here's the content of {last_config}:")
                     print (last_config.read_text())
                 else:
-                    print(f"Build type {t} failed before configure step.")
+                    print(f"Build type {b.longname} failed before configure step.")
 
         return success
 
