@@ -34,8 +34,9 @@ class Project(object):
         # Can help to limit build time
         # NOTE: projects may have an option to ENABLE such code or an optio to DISABLE it.
         # Hence, we ooffer both alternatives
-        self.enable_baselines_cmake_var  = project_specs.get('enable_baselines_code',None)
-        self.disable_baselines_cmake_var = project_specs.get('disable_baselines_code',None)
+        self.cmake_vars_names = project_specs.get('cmake_vars_names',{})
+
+        self.cdash = project_specs.get('cdash',{})
 
         # Evaluate remaining bash commands of the form $(...)
         evaluate_commands(self)

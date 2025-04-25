@@ -59,6 +59,7 @@ class Driver(object):
         self._root_dir      = pathlib.Path(root_dir or os.getcwd()).expanduser().absolute()
         self._machine       = None
         self._builds        = []
+        self._config_file   = pathlib.Path(config_file or self._root_dir / "cacts.yaml")
 
         # Ensure work dir exists
         self._work_dir.mkdir(parents=True,exist_ok=True)
@@ -67,11 +68,10 @@ class Driver(object):
         #  Parse the project config file  #
         ###################################
 
-        config_file = pathlib.Path(config_file or self._root_dir / "cacts.yaml")
-        expect (config_file.exists(),
-                f"Could not find/open config file: {config_file}\n")
+        expect (self._config_file.exists(),
+                f"Could not find/open config file: {self._config_file}\n")
 
-        self.parse_config_file(config_file,machine_name,build_types)
+        self.parse_config_file(machine_name,build_types)
 
         ###################################
         #          Sanity Checks          #
@@ -94,7 +94,9 @@ class Driver(object):
                     "Cannot submit to cdash when generating baselines. Re-run without -g.")
 
             # Check all cdash settings are valid in the project
-            expect (self._project.cdash.get('url',None),
+            cdash = self._project.cdash
+            expect (cdash.get('ctest_config_file',None) or
+                    (cdash.get('drop_site',None) and cdash.get('drop_location',None)),
                     "Cannot submit to cdash, since project.cdash.url is not set. Please fix your yaml config file.\n")
 
         ###################################
@@ -135,18 +137,18 @@ class Driver(object):
             num_bld_res_left = self._machine.num_bld_res
             num_run_res_left = self._machine.num_run_res
 
-            for i,test in enumerate(self._builds):
+            for i,b in enumerate(self._builds):
                 num_left = len(self._builds)-i
-                test.testing_res_count = num_bld_res_left // num_left
-                test.compile_res_count = num_run_res_left // num_left
+                b.testing_res_count = num_bld_res_left // num_left
+                b.compile_res_count = num_run_res_left // num_left
 
-                num_bld_res_left -= test.compile_res_count;
-                num_run_res_left -= test.testing_res_count;
+                num_bld_res_left -= b.compile_res_count;
+                num_run_res_left -= b.testing_res_count;
         else:
             # We can use all the res on the node
-            for test in self._builds:
-                test.testing_res_count = self._machine.num_run_res
-                test.compile_res_count = self._machine.num_bld_res
+            for b in self._builds:
+                b.testing_res_count = self._machine.num_run_res
+                b.compile_res_count = self._machine.num_bld_res
 
     ###############################################################################
     def run(self):
@@ -156,27 +158,23 @@ class Driver(object):
         git_sha = get_current_sha (short=True)
 
         print("###############################################################################")
-        if self._generate:
-            print(f"Generating baselines from git ref '{git_ref}' (sha={git_sha})")
-        else:
-            print(f"Running tests for git ref '{git_ref}' (sha={git_sha}) on machine {self._machine.name}")
-
-        print(f"  active builds: {', '.join(b.name for b in self._builds)}")
+        action = "Generating baselines" if self._generate else "Running tests"
+        print(f"{action} with git ref '{git_ref}' (sha={git_sha}) on machine {self._machine.name}")
+        if self._baselines_dir:
+            print(f"  Baselines directory: {self._baselines_dir}")
+        print(f"  Active builds: {', '.join(b.name for b in self._builds)}")
         print("###############################################################################")
 
-        success = True
         builds_success = {
             build : False
             for build in self._builds}
 
         num_workers = len(self._builds) if self._parallel else 1
 
-        fcn = self.generate_baselines if self._generate else self.run_tests
-
         with threading.ProcessPoolExecutor(max_workers=num_workers) as executor:
 
             future_to_build = {
-                    executor.submit(fcn,build) : build
+                    executor.submit(self.run_build,build) : build
                     for build in self._builds}
             for future in threading.as_completed(future_to_build):
                 build = future_to_build[future]
@@ -185,122 +183,33 @@ class Driver(object):
         success = True
         for b,s in builds_success.items():
             if not s:
-                success = False
-                last_test   = self.get_phase_log(b,"TestsFailed")
-                last_build  = self.get_phase_log(b,"Build")
-                last_config = self.get_phase_log(b,"Configure")
+                last_submit = self.get_last_ctest_file(b,"Submit")
+                last_test = self.get_last_ctest_file(b,"TestsFailed")
+                last_build  = self.get_last_ctest_file(b,"Build")
+                last_config = self.get_last_ctest_file(b,"Configure")
+                if last_submit is not None:
+                    print(f"Build type {b} failed at submit time. Here's the content of {last_submit}:")
+                    print (last_submit.read_text())
                 if last_test is not None:
-                    print(f"Build type {b} failed at testing time. Here's the list of failed tests:")
+                    print(f"Build type {b} failed at testing time. Here's the content of {last_test}:")
                     print (last_test.read_text())
                 elif last_build is not None:
-                    print(f"Build type {b} failed at build time. Here's the build log:")
+                    print(f"Build type {b} failed at build time. Here's the content of {last_build}:")
                     print (last_build.read_text())
                 elif last_config is not None:
-                    print(f"Build type {b} failed at config time. Here's the config log:\n\n")
+                    print(f"Build type {b} failed at config time. Here's the content of {last_config}:")
                     print (last_config.read_text())
                 else:
-                    print(f"Build type {b} failed at an unknown stage (likely before configure step).")
+                    print(f"Build type {t} failed before configure step.")
 
         return success
 
     ###############################################################################
-    def generate_baselines(self,build):
+    def run_build(self,build):
     ###############################################################################
 
-        expect(build.uses_baselines,
-               f"Something is off. generate_baseline should have not be called for build {build}")
-
-        baseline_dir = self._baselines_dir / build.longname
-        build_dir    = self._work_dir     / build.longname
-
-        # Ensure clean build
-        if build_dir.exists():
-            shutil.rmtree(build_dir)
-        build_dir.mkdir(parents=True)
-
-        self.create_ctest_resource_file(build,build_dir)
-        cmake_config = self.generate_cmake_config(build)
-
-        print("===============================================================================")
-        print(f"Generating baseline for build {build.longname}")
-        print(f"  cmake config: {cmake_config}")
-        print("===============================================================================")
-
-        # Create the Testing/Temporary folder
-        logs_dir = build_dir / "Testing/Temporary"
-        logs_dir.mkdir(parents=True)
-
-        # If non-empty, run these env setup cmds BEFORE running any command
-        env_setup = " && ".join(self._machine.env_setup)
-
-        log_file = f"{logs_dir}/LastConfigure.log"
-        cmd = f"{cmake_config}"
-        stat, _, err = run_cmd(cmd,output_file=log_file,combine_output=True,
-                               env_setup=env_setup,from_dir=build_dir, verbose=True)
-        if stat != 0:
-            print (f"WARNING: Failed to create baselines (config phase):\n{err}")
-            return False
-
-        if self._config_only:
-            print("  - Skipping build/test phase, since --no-build was used")
-            return True
-
-        cmd = f"make -j{build.compile_res_count}"
-        if self._parallel:
-            resources = self.get_taskset_resources(build, for_compile=True)
-            cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
-
-        log_file = f"{logs_dir}/LastBuild.log"
-        stat, _, err = run_cmd(cmd, output_file=log_file,combine_output=True,
-                               env_setup=env_setup, from_dir=build_dir, verbose=True)
-
-        if stat != 0:
-            print (f"WARNING: Failed to create baselines (build phase):\n{err}")
-            return False
-
-        if self._build_only:
-            print("  - Skipping test phase, since --no-build was used")
-            return True
-
-        cmd  = f"ctest -j{build.testing_res_count}"
-        if self._project.baselines_gen_label:
-            cmd += f" -L {self._project.baselines_gen_label}"
-        cmd += f" --resource-spec-file {build_dir}/ctest_resource_file.json"
-        stat, _, err = run_cmd(cmd, output_to_screen=True,
-                               env_setup=env_setup, from_dir=build_dir, verbose=True)
-
-        if stat != 0:
-            print (f"WARNING: Failed to create baselines (run phase):\n{err}")
-            return False
-
-        # Read list of nc files to copy to baseline dir
-        if self._project.baselines_summary_file is not None:
-            with open(build_dir/self._project.baselines_summary_file,"r",encoding="utf-8") as fd:
-                files = fd.read().splitlines()
-
-                with SharedArea():
-                    for fn in files:
-                        # In case appending to the file leaves an empty line at the end
-                        if fn != "":
-                            src = pathlib.Path(fn)
-                            dst = baseline_dir / "data" / src.name
-                            shutil.copyfile(src, dst)
-
-        # Store the sha used for baselines generation. This is only for record keeping.
-        baseline_file = baseline_dir / "baseline_git_sha"
-        with baseline_file.open("w", encoding="utf-8") as fd:
-            sha = get_current_commit()
-            return fd.write(sha)
-        build.baselines_missing = False
-
-        return True
-
-    ###############################################################################
-    def run_tests(self, build):
-    ###############################################################################
-
-        # Prepare build and logs directories (if needed)
         build_dir = self._work_dir / build.longname
+
         if self._skip_config:
             expect (build_dir.exists(),
                     "Build directory did not exist, but --skip-config/--skip-build was used.\n")
@@ -309,86 +218,46 @@ class Driver(object):
                 shutil.rmtree(build_dir)
             build_dir.mkdir()
 
-        logs_dir = build_dir / "Testing/Temporary"
-        if not logs_dir.exists():
-            logs_dir.mkdir(parents=True)
-
         self.create_ctest_resource_file(build,build_dir)
+        cmake_config = self.generate_cmake_config(build)
+        ctest_cmd = self.generate_ctest_cmd(build,cmake_config)
 
         print("===============================================================================")
-        print(f"Running tests for build {build.longname}")
-        if not self._skip_config:
-            cmake_config = self.generate_cmake_config(build)
-            print(f"  cmake config: {cmake_config}")
+        print(f"Processing build {build.longname}")
+        print(f"  ctest command: {ctest_cmd}")
         print("===============================================================================")
 
-        # If non-empty, run these env setup cmds BEFORE running any command
+        # Generate the script ctest will run
+        self.generate_ctest_script(build)
+
+        # Run ctest
         env_setup = " && ".join(self._machine.env_setup)
+        success,_,_ = run_cmd(ctest_cmd,arg_stdout=None,arg_stderr=None,env_setup=env_setup,from_dir=build_dir,verbose=True)
 
-        if not self._skip_config:
-            log_file = f"{logs_dir}/LastConfigure.log"
-            stat, _, err = run_cmd(f"{cmake_config}",env_setup=env_setup,
-                                   output_file=log_file,combine_output=True,output_to_screen=self._verbose,
-                                   from_dir=build_dir,verbose=True)
-            if stat != 0:
-                print (f"WARNING: Failed to run tests (config phase):\n{err}")
-                return False
-        else:
-            print(" -> Skipping config phase since --skip-config (or --skip-build) was used")
+        if self._generate and success:
+            baseline_dir = self._baselines_dir / build.longname
 
-        if self._config_only:
-            print("  - Skipping build/test phase, since --no-build was used")
-            return True
+            # Read list of nc files to copy to baseline dir
+            if self._project.baselines_summary_file is not None:
+                with open(build_dir/self._project.baselines_summary_file,"r",encoding="utf-8") as fd:
+                    files = fd.read().splitlines()
 
-        if not self._skip_build:
-            cmd = f"make -j{build.compile_res_count}"
-            if self._parallel:
-                resources = self.get_taskset_resources(build, for_compile=True)
-                cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
+                    with SharedArea():
+                        for fn in files:
+                            # In case appending to the file leaves an empty line at the end
+                            if fn != "":
+                                src = pathlib.Path(fn)
+                                dst = baseline_dir / "data" / src.name
+                                shutil.copyfile(src, dst)
 
-            log_file = f"{logs_dir}/LastBuild.log"
-            stat, _, err = run_cmd(cmd, env_setup=env_setup,
-                                   output_file=log_file,combine_output=True,output_to_screen=self._verbose,
-                                   from_dir=build_dir,verbose=True)
+            # Store the sha used for baselines generation. This is only for record keeping.
+            baseline_file = baseline_dir / "baseline_git_sha"
+            with baseline_file.open("w", encoding="utf-8") as fd:
+                sha = get_current_commit()
+                fd.write(sha)
+            build.baselines_missing = False
 
-            if stat != 0:
-                print (f"WARNING: Failed to run tests (build phase):\n{err}")
-                return False
-        else:
-            print(" -> Skipping build phase since --skip-build was used")
-
-        if self._build_only:
-            print("  - Skipping test phase, since --no-build was used")
-            return True
-
-        cmd  = f"ctest -j{build.testing_res_count}"
-        cmd += f" --resource-spec-file {build_dir}/ctest_resource_file.json"
-        if self._test_regex:
-            cmd += f" -R {self._test_regex}"
-        if self._test_labels:
-            cmd += f" -L {self._test_labels}"
-        cmd += " --output-on-failure"
-
-        log_file = f"{logs_dir}/LastBuild.log"
-        stat, _, err = run_cmd(cmd, env_setup=env_setup,
-                               output_file=log_file,combine_output=True,output_to_screen=self._verbose,
-                               from_dir=build_dir,verbose=True)
-
-        if self._submit:
-            cmd = "ctest -D Experimental"
-            cmd += f" --project {self._project.cdash.get('project',self._project.name)}"
-            cmd += f" --submit {self._project.cdash['url']}"
-            cmd += f" --build {self._project.cdash.get('build_prefix','')+build.longname}"
-            cmd += f" --track {self._project.cdash['track']}" if 'track' in self._project.cdash.keys() else ""
-            cmd += f" --drop-site {self._machine.name}"
-
-            run_cmd(cmd,from_dir=self._root_dir,verbose=True)
-
-        if stat != 0:
-            print (f"WARNING: Failed to run tests (run phase):\n{err}")
-            return False
-
-        return True
+        return success
 
     ###############################################################################
     def create_ctest_resource_file(self, build, build_dir):
@@ -453,54 +322,54 @@ class Driver(object):
         return resources
 
     ###############################################################################
-    def get_phase_log(self,build,phase):
+    def get_last_ctest_file(self,build,phase):
     ###############################################################################
         build_dir = self._work_dir / build.longname
-        ctest_results_dir = pathlib.Path(build_dir,"Testing","Temporary")
-        log_filename = f"Last{phase}.log"
-        files = list(ctest_results_dir.glob(log_filename))
-        expect(len(files)==1,
-                 "Found zero or multiple log files:\n"
-                f"  - build: {build.longname}\n"
-                f"  - build dir: {build_dir}\n"
-                f"  - log file name: {log_filename}\n"
-                f"  - files found: [{','.join(f.name for f in files)}]")
-
-        return files[0]
+        logs_dir = build_dir / "Testing/Temporary"
+        files = list(logs_dir.glob(f"Last{phase}*"))
+        # ctest creates files of the form Last{phase}_$TIMESTAMP.log, so lexicographical
+        # sorting will ensure that the last one is the most recent
+        files = sorted(files)
+        return files[-1] if files else None
 
     ###############################################################################
     def generate_cmake_config(self, build):
     ###############################################################################
 
-        # Ctest only needs config options, and doesn't need the leading 'cmake '
-        result  = "cmake"
+        cmake_config = ""
         if self._machine.mach_file is not None:
-            result += f" -C {self._machine.mach_file}"
+            cmake_config += f"-C {self._machine.mach_file}"
 
         # Build-specific cmake options
         for key, value in build.cmake_args.items():
-            result += f" -D{key}={value}"
+            cmake_config += f" -D{key}={value} "
 
         # Compilers
         if self._machine.cxx_compiler is not None:
-            result += f" -DCMAKE_CXX_COMPILER={self._machine.cxx_compiler}"
+            cmake_config += f" -DCMAKE_CXX_COMPILER={self._machine.cxx_compiler}"
         if self._machine.c_compiler is not None:
-            result += f" -DCMAKE_C_COMPILER={self._machine.c_compiler}"
+            cmake_config += f" -DCMAKE_C_COMPILER={self._machine.c_compiler}"
         if self._machine.ftn_compiler is not None:
-            result += f" -DCMAKE_Fortran_COMPILER={self._machine.ftn_compiler}"
+            cmake_config += f" -DCMAKE_Fortran_COMPILER={self._machine.ftn_compiler}"
 
-        if self._project.enable_baselines_cmake_var:
+        proj_cmake_vars = self._project.cmake_vars_names;
+        if 'enable_baselines' in proj_cmake_vars.keys():
             # The project has a cmake var for enabling baselines code/tests
             # We enable them if baselines were requested
-            value = "ON" if self._baselines_dir else "OFF"
-            result += f" -D{self._project.enable_baselines_cmake_var}={value}"
-            print(f"setting {self._project.enable_baselines_cmake_var} to {value}")
-        elif self._project.disable_baselines_cmake_var:
+            var_name = proj_cmake_vars['enable_baselines']
+            var_value = "ON" if self._baselines_dir else "OFF "
+            cmake_config += f" -D{var_name}={var_value}"
+        elif 'disable_baselines' in proj_cmake_vars.keys():
             # The project has a cmake var for disabling baselines code/tests
             # We disable them if baselines were NOT requested
-            value = "OFF" if self._baselines_dir else "ON"
-            result += f" -D{self._project.disable_baselines_cmake_var}={value}"
-            print(f"setting {self._project.disable_baselines_cmake_var} to {value}")
+            var_name = proj_cmake_vars['disable_baselines']
+            var_value = "OFf"if self._baselines_dir else "ON "
+            cmake_config += f" -D{var_name}={var_value}"
+
+        if self._baselines_dir and 'baselines_dir' in proj_cmake_vars.keys():
+            var_name = proj_cmake_vars['baselines_dir']
+            var_value = self._baselines_dir / build.longname
+            cmake_config += f" -D{var_name}={var_value}"
 
         # User-requested config options
         for arg in self._cmake_args:
@@ -509,11 +378,110 @@ class Driver(object):
 
             name, value = arg.split("=", 1)
             # Some effort is needed to ensure quotes are perserved
-            result += f" -D{name}='{value}'"
+            cmake_config += f" -D{name}='{value}'"
 
-        result += f" -S {self._root_dir}"
+        cmake_config += f" -S {self._project.root_dir}"
 
-        return result
+        return cmake_config
+
+    ###############################################################################
+    def generate_ctest_cmd(self, build, cmake_config):
+    ###############################################################################
+
+        ctest_cmd = "ctest"
+        ctest_cmd += " -VV" if self._verbose else " --output-on-failure"
+        ctest_cmd += f" -S {self._work_dir / build.longname / 'ctest_script.cmake'}"
+
+        ctest_cmd += f' -DCMAKE_COMMAND="{cmake_config}"'
+
+        if self._submit:
+            ctest_cmd += " -D Experimental"
+
+        ctest_cmd += f' --resource-spec-file {self._work_dir}/{build.longname}/ctest_resource_file.json'
+
+        # If the build is not concurrent to other builds, this is not really necessary,
+        # since we can use the whole node.
+        if self._parallel:
+            resources = self.get_taskset_resources(build, for_compile=True)
+            ctest_cmd = f"taskset -c {','.join([str(r) for r in resources])} sh -c '{cmd}'"
+
+        return ctest_cmd
+
+    ###############################################################################
+    def generate_ctest_script(self,build):
+    ###############################################################################
+
+        text = '# This file was automatically generated by CACTS.\n'
+        text += f'# CACTS yaml config file: {self._config_file}\n\n'
+
+        text += 'cmake_minimum_required(VERSION 3.9)\n\n'
+        text += 'set(CTEST_CMAKE_GENERATOR "Unix Makefiles")\n\n'
+
+        text += f'set(CTEST_SOURCE_DIRECTORY {self._project.root_dir})\n'
+        text += f'set(CTEST_BINARY_DIRECTORY {self._work_dir / build.longname})\n\n'
+
+        if self._submit:
+            cdash = self._project.cdash
+            text += '# Submission specs\n'
+            text += f'set(CTEST_BUILD_NAME {self._project.cdash.get('build_prefix','')+build.longname})\n'
+            text += f'set(CTEST_SITE {self._machine.name})\n'
+            text += f'set(CTEST_DROP_SITE {cdash['drop_site']})\n'
+            text += f'set(CTEST_DROP_LOCATION {cdash['drop_location']})\n'
+            disable_ssl = cdash.get('curl_ssl_off',False)
+            if disable_ssl:
+                curl_options = 'CURLOPT_SSL_VERIFYPEER_OFF;CURLOPT_SSL_VERIFYHOST_OFF'
+                text += f'set(DCTEST_CURL_OPTIONS "{curl_options}")\n\n'
+
+        text += '# Start ctest session\n'
+        text += 'ctest_start(Experimental)\n\n'
+
+        text += '# Configure phase\n'
+        text += 'separate_arguments(OPTIONS_LIST UNIX_COMMAND "${CMAKE_COMMAND}")\n'
+        text += 'ctest_configure(OPTIONS "${OPTIONS_LIST}" RETURN_VALUE CONFIG_ERROR_CODE)\n'
+
+        text += 'if (CONFIG_ERROR_CODE)\n'
+        text += '  message (FATAL_ERROR "CTest failed during configure phase")\n'
+        text += 'endif ()\n\n'
+
+        if not self._config_only:
+            text += '# Build phase\n'
+            text += f'ctest_build(FLAGS "-j{build.compile_res_count}" RETURN_VALUE BUILD_ERROR_CODE)\n'
+            text += 'if (BUILD_ERROR_CODE)\n'
+            text += '  message (FATAL_ERROR "CTest failed during build phase")\n'
+            text += 'endif()\n\n'
+
+            if not self._build_only:
+                text += '# Test phase\n'
+                test_line = 'ctest_test(RETURN_VALUE TEST_ERROR_CODE'
+                test_line += f' PARALLEL_LEVEL {build.testing_res_count}'
+                if self._test_regex:
+                    test_line += f' INCLUDE {self._test_regex}'
+                if self._test_labels:
+                    test_line += f' INCLUDE_LABEL {self._test_labels}'
+                elif self._generate and self._project.baselines_gen_label:
+                    test_line += f' INCLUDE_LABEL {self._project.baselines_gen_label}'
+                test_line += ")\n"
+
+                text += test_line
+                text += 'if (TEST_ERROR_CODE)\n'
+                text += '    message (FATAL_ERROR "CTest failed during test phase")\n'
+                text += 'endif()\n\n'
+
+                if build.coverage:
+                    text += '# Coverage phase\n'
+                    text += 'ctest_coverage(RETURN_VALUE COVERAGE_ERROR_CODE)\n'
+                    text += 'if (COVERAGE_ERROR_CODE)\n'
+                    text += '  message (FATAL_ERROR "CTest failed during coverage phase")\n'
+                    text += 'endif()\n\n'
+
+                if self._submit:
+                    text += '# Submit phase\n'
+                    text += 'ctest_submit(RETRY_COUNT 10 RETRY_DELAY 60 RETURN_VALUE SUBMIT_ERROR_CODE)\n'
+                    text += 'if (SUBMIT_ERROR_CODE)\n'
+                    text += '  message (FATAL_ERROR "CTest failed during submit phase")\n'
+                    text += 'endif()\n'
+        with open( self._work_dir / build.longname / "ctest_script.cmake", 'w') as fd:
+            fd.write(text)
 
     ###############################################################################
     def check_baselines_are_present(self):
@@ -534,7 +502,7 @@ class Driver(object):
                 if not data_dir.is_dir():
                     build.baselines_missing = True
                     missing.append(build.longname)
-                    print(f" -> Build {build.longname} is missing baselines")
+                    print(f" -> Build {build.longname} is missing baselines (no {data_dir} dir)")
                 else:
                     print(f" -> Build {build.longname} appears to have baselines")
             else:
@@ -544,12 +512,12 @@ class Driver(object):
                 f"Re-run with -g to generate missing baselines for builds {missing}")
 
     ###############################################################################
-    def parse_config_file(self,config_file,machine_name,builds_types):
+    def parse_config_file(self,machine_name,builds_types):
     ###############################################################################
-        content = yaml.load(open(config_file,"r"),Loader=yaml.SafeLoader)
+        content = yaml.load(open(self._config_file,"r"),Loader=yaml.SafeLoader)
         expect (all(k in content.keys() for k in ['project','machines','configurations']),
                 "Missing section in configuration file\n"
-                f" - config file: {config_file}\n"
+                f" - config file: {self._config_file}\n"
                 f" - requires sections: project, machines, configurations\n"
                 f" - sections found: {','.join(content.keys())}\n")
 
@@ -614,7 +582,7 @@ OR
         help="Directory where baselines should be read/written from/to (depending if -g is used). "
              "Default is None which skips all baseline tests. AUTO means use machine-defined folder.")
 
-    parser.add_argument("-c", "--cmake-args", action="extend", default=[],
+    parser.add_argument("-c", "--cmake-args", nargs='+', action="extend", default=[],
             help="Extra custom options to pass to cmake. Can use multiple times for multiple cmake options. "
                  "The -D is added for you, so just do VAR=VALUE. These value will supersed any other setting "
                  "(including machine/build specs)")
