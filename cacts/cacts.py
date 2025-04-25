@@ -211,7 +211,6 @@ class Driver(object):
     ###############################################################################
 
         build_dir = self._work_dir / build.longname
-
         if self._skip_config:
             expect (build_dir.exists(),
                     "Build directory did not exist, but --skip-config/--skip-build was used.\n")
@@ -219,6 +218,12 @@ class Driver(object):
             if build_dir.exists():
                 shutil.rmtree(build_dir)
             build_dir.mkdir()
+
+        baseline_dir = self._baselines_dir / build.longname
+        baseline_data_dir = baseline_dir / "data"
+        if self._generate:
+            baseline_dir.mkdir(exist_ok=True)
+            baseline_data_dir.mkdir(exist_ok=True)
 
         self.create_ctest_resource_file(build,build_dir)
         cmake_config = self.generate_cmake_config(build)
@@ -238,7 +243,6 @@ class Driver(object):
         success = stat==0
 
         if self._generate and success:
-            baseline_dir = self._baselines_dir / build.longname
 
             # Read list of nc files to copy to baseline dir
             if self._project.baselines_summary_file is not None:
