@@ -41,6 +41,7 @@ class BuildType(object):
         self.description = props.get('description',None)
         self.uses_baselines = props.get('uses_baselines',None)
         self.on_by_default  = props.get('on_by_default',None)
+        self.coverage = props.get('coverage',False)
         if  self.uses_baselines is None:
             self.uses_baselines = default.get('uses_baselines',True)
         if  self.on_by_default is None:
