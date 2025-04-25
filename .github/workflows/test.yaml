@@ -26,11 +26,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
         enable-cache: true
 
-    - name: Install dependencies
-      run: python3 -m pip install .
-
     - name: Run tests
       run: uv run pytest -Werror
 
     - name: Run shell-based deployment tests
-      run: bash cacts/tests/test_deploy.sh
+      run: uv run cacts/tests/test_deploy.sh
