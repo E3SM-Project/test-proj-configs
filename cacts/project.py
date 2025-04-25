@@ -1,21 +1,51 @@
+"""
+A Project class to hold some properties of a cmake project
+that CACTS will use at runtime
+"""
+from dataclasses import dataclass, field
+from typing import Dict, Optional
 from .utils import expect, evaluate_commands
 
 ###############################################################################
-class Project(object):
+@dataclass
+class Project:
 ###############################################################################
     """
-    Parent class for objects describing a project
+    An object storing config data for a cmake
     """
+    root_dir: str
+    name: str = field(init=False)
+    baselines_gen_label: Optional[str] = None
+    baselines_cmp_label: Optional[str] = None
+    baselines_summary_file: Optional[str] = None
+    cmake_vars_names: Dict[str, any] = field(default_factory=dict)
+    cdash: Dict[str, any] = field(default_factory=dict)
+
+    # To check inside init
+    valid_keys = {
+            'name',
+            'baseline_gen_label',
+            'baseline_cmp_label',
+            'baseline_summary_file',
+            'cmake_vars_names',
+            'cdash'
+    }
 
     def __init__ (self,project_specs,root_dir):
         expect (isinstance(project_specs,dict),
                 f"Project constructor expects a dict object (got {type(project_specs)} instead).\n")
 
+        # Check for unrecognized keys (may be typos)
+        unrecognized_keys = set(project_specs.keys()) - self.valid_keys
+        expect (not unrecognized_keys,
+                f"Unrecognized keys in project_specs: {', '.join(unrecognized_keys)}")
+
         expect ('name' in project_specs.keys(),
                 "Missing required field 'name' in 'project' section.\n")
 
-        self.name = project_specs['name']
         self.root_dir = root_dir
+
+        self.name = project_specs['name']
 
         # If left to None, ALL tests are run during baselines generation
         self.baselines_gen_label = project_specs.get('baseline_gen_label',None)
@@ -38,5 +68,6 @@ class Project(object):
 
         self.cdash = project_specs.get('cdash',{})
 
-        # Evaluate remaining bash commands of the form $(...)
+    def __post_init__  (self):
+        # Evaluate bash commands of the form $(...)
         evaluate_commands(self)
