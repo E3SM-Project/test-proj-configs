@@ -26,6 +26,7 @@ dev = [
 
 [project.scripts]
 cacts = "cacts:main"
+get-mach-env = "cacts:get_mach_env"
 
 [tool.hatch.version]
 path = "cacts/__init__.py"
