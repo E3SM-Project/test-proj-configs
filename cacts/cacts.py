@@ -5,16 +5,15 @@ import concurrent.futures as threading
 import shutil
 import psutil
 import json
-import re
 import itertools
-import yaml
 import argparse
 
-from .project    import Project
-from .machine    import Machine
-from .build_type import BuildType
-from .utils      import expect, run_cmd, get_current_ref, get_current_sha, is_git_repo, \
-                        check_minimum_python_version, GoodFormatter
+from .project       import Project
+from .machine       import Machine
+from .build_type    import BuildType
+from .parse_config  import parse_project, parse_machine, parse_builds
+from .utils         import expect, run_cmd, get_current_ref, get_current_sha, is_git_repo, \
+                           check_minimum_python_version, GoodFormatter
 
 check_minimum_python_version(3, 4)
 
@@ -60,7 +59,6 @@ class Driver(object):
         self._machine       = None
         self._builds        = []
         self._config_file   = pathlib.Path(config_file or self._root_dir / "cacts.yaml")
-        self._local         = local
 
         # Ensure work dir exists
         self._work_dir.mkdir(parents=True,exist_ok=True)
@@ -71,8 +69,12 @@ class Driver(object):
 
         expect (self._config_file.exists(),
                 f"Could not find/open config file: {self._config_file}\n")
+        expect (not (local and machine_name),
+                "Makes no sense to use -m/--machine and -l/--local at the same time")
 
-        self.parse_config_file(machine_name,build_types)
+        self._project = parse_project(self._config_file,self._root_dir)
+        self._machine = parse_machine(self._config_file,self._project,'local' if local else machine_name)
+        self._builds  = parse_builds(self._config_file,self._project,self._machine,self._generate,build_types)
 
         ###################################
         #          Sanity Checks          #
@@ -527,50 +529,6 @@ class Driver(object):
 
         expect (len(missing)==0,
                 f"Re-run with -g to generate missing baselines for builds {missing}")
-
-    ###############################################################################
-    def parse_config_file(self,machine_name,builds_types):
-    ###############################################################################
-        content = yaml.load(open(self._config_file,"r"),Loader=yaml.SafeLoader)
-        expect (all(k in content.keys() for k in ['project','machines','configurations']),
-                "Missing section in configuration file\n"
-                f" - config file: {self._config_file}\n"
-                f" - requires sections: project, machines, configurations\n"
-                f" - sections found: {','.join(content.keys())}\n")
-
-        proj = content['project']
-        machs = content['machines']
-        configs = content['configurations']
-
-        if self._local:
-            local_yaml = pathlib.Path("~/.cime/cacts.yaml").expanduser()
-            local_content = yaml.load(open(local_yaml,'r'),Loader=yaml.SafeLoader)
-            machs.update(local_content['machines'])
-            machine_name = 'local'
-
-        # Build Project
-        self._project = Project(proj,self._root_dir)
-
-        # Build Machine
-        self._machine = Machine(machine_name,self._project,machs)
-
-        # Get builds
-        if builds_types:
-            for name in builds_types:
-                build = BuildType(name,self._project,self._machine,configs)
-                # Skip non-baselines builds when generating baselines
-                if not self._generate or build.uses_baselines:
-                    self._builds.append(build)
-        else:
-            # Add all build types that are on by default
-            for name in configs.keys():
-                if name=='default':
-                    continue
-                build = BuildType(name,self._project,self._machine,configs)
-
-                # Skip non-baselines builds when generating baselines
-                if (not self._generate or build.uses_baselines) and build.on_by_default:
-                    self._builds.append(build)
 
 ###############################################################################
 def parse_command_line(args, description, version):
