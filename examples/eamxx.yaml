@@ -37,10 +37,10 @@ project:
     baseline_summary_file: baseline_list
     enable_baselines_cmake_option: SCREAM_ENABLE_BASELINE_TESTS
     cdash:
-      project: SCREAM # In case CDash project name differs. Defaults to project.name
-      url: https://my.cdash.org/submit.php?project=E3SM
-      build_prefix: scream_unit_tests_  # Optional. Final value of --build is this plus ${machine.name}
-      track: E3SM_SCREAM  # Optional
+      drop_site: my.cdash.org
+      drop_location: submit.php?project=E3SM
+      build_prefix: scream_unit_tests_  # Optional. Final value of is this plus ${build.name}
+      curl_disable_ssl: True
     # CACTS will also set project.root_dir at runtime, so you can actually use
     # ${project.root_dir} in the machines/configurations sections
 
