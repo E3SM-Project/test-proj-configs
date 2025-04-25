@@ -68,7 +68,7 @@ class BuildType(object):
         expand_variables(self,objects)
 
         # Evaluate remaining bash commands of the form $(...)
-        evaluate_commands(self)
+        evaluate_commands(self," && ".join(machine.env_setup))
 
         # After vars expansion, these two must be convertible to bool
         if type(self.uses_baselines) is str:
