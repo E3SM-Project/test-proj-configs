@@ -28,8 +28,7 @@ def expect(condition, error_msg, exc_type=RuntimeError, error_prefix="ERROR:"):
 
 ###############################################################################
 def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
-            output_file=None,error_file=None,
-            output_to_screen=False,error_to_screen=False,
+            arg_stdout=subprocess.PIPE, arg_stderr=subprocess.PIPE,
             combine_output=False):
 ###############################################################################
     """
@@ -39,24 +38,12 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
     True
     """
 
-    expect (not (combine_output and (error_file or error_to_screen)),
-            "Makes no sense to request combined output, and then provide a special handle for stderr.\n")
-
     # If the cmd needs some env setup, the user can pass the setup string, which will be
     # executed right before the cmd
     if env_setup:
         cmd = f"{env_setup} && {cmd}"
 
-    # When outputing to screen, it is much easier to listen to only one between
-    # stdout and stderr, so we force combine_output to be True
-    if output_to_screen:
-        combine_output=True
-
-    arg_stdout = subprocess.PIPE
-    if combine_output:
-        arg_stderr = subprocess.STDOUT
-    else:
-        arg_stderr = subprocess.PIPE
+    arg_stderr = subprocess.STDOUT if combine_output else arg_stderr
 
     from_dir = str(from_dir) if from_dir else from_dir
 
@@ -74,40 +61,19 @@ def run_cmd(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
                             text=True, # automatically decode output bytes to string
                             cwd=from_dir)
 
-    output = ""
-    errput = ""
+    output, errput = proc.communicate(None)
+    if output is not None:
+        output = output.strip()
+    if errput is not None:
+        errput = errput.strip()
 
-    if output_to_screen:
-        # We are forcing combined outpu, so just parse stdout
-        for line in iter(proc.stdout.readline,''):
-            output += line
-            print(line,end='')
+    stat = proc.wait()
 
-        proc.wait()
-    else:
-        # Parse stdout and stderr separately
-        output, errput = proc.communicate()
-
-        if output:
-            output = output.strip()
-
-        if errput:
-            errput = errput.strip()
-
-    # If we need to write to file, do so
-    if output_file:
-        with open(output_file,'w') as fd:
-            fd.write(output)
-    if not combine_output and error_file:
-        with open(error_file,'w') as fd:
-            fd.write(error)
-
-    return proc.returncode, output, errput
+    return stat, output, errput
 
 ###############################################################################
-def run_cmd_no_fail(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=None,
-                    output_file=None,error_file=None,
-                    output_to_screen=False,error_to_screen=False,
+def run_cmd_no_fail(cmd, from_dir=None, verbose=None, dry_run=False,env_setup=None,
+                    arg_stdout=subprocess.PIPE, arg_stderr=subprocess.PIPE,
                     combine_output=False):
 ###############################################################################
     """
@@ -115,8 +81,7 @@ def run_cmd_no_fail(cmd, from_dir=None, verbose=None, dry_run=False, env_setup=N
     Expects command to work. Just returns output string.
     """
     stat, output, errput = run_cmd(cmd, from_dir=from_dir,verbose=verbose,dry_run=dry_run,env_setup=env_setup,
-                                   output_file=output_file,error_file=error_file,
-                                   output_to_screen=output_to_screen,error_to_screen=error_to_screen,
+                                   arg_stdout=arg_stdout,arg_stderr=arg_stderr,
                                    combine_output=combine_output)
     expect (stat==0,
             "Command failed unexpectedly"
