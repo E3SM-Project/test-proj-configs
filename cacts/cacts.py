@@ -263,7 +263,7 @@ class Driver(object):
             # Store the sha used for baselines generation. This is only for record keeping.
             baseline_file = baseline_dir / "baseline_git_sha"
             with baseline_file.open("w", encoding="utf-8") as fd:
-                sha = get_current_commit()
+                sha = get_current_sha()
                 fd.write(sha)
             build.baselines_missing = False
 
