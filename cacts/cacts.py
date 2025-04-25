@@ -116,6 +116,10 @@ class Driver(object):
             if not self._generate:
                 self.check_baselines_are_present()
 
+            self._enable_baselines_tests = True
+        else:
+            self._enable_baselines_tests = False
+
         # Make the baseline dir, if not already existing.
         if self._generate:
             expect(self._baselines_dir is not None, "Cannot generate without -b/--baseline-dir")
@@ -126,7 +130,6 @@ class Driver(object):
 
         if self._parallel:
             # NOTE: we ASSUME that num_run_res>=num_bld_res, which is virtually always true
-
 
             # Our way of partitioning the compute node among the different builds only
             # works if the number of bld/run resources is no-less than the number of builds
@@ -360,23 +363,34 @@ class Driver(object):
             cmake_config += f" -DCMAKE_Fortran_COMPILER={self._machine.ftn_compiler}"
 
         proj_cmake_vars = self._project.cmake_vars_names;
-        if 'enable_baselines' in proj_cmake_vars.keys():
-            # The project has a cmake var for enabling baselines code/tests
-            # We enable them if baselines were requested
-            var_name = proj_cmake_vars['enable_baselines']
-            var_value = "ON" if self._baselines_dir else "OFF "
-            cmake_config += f" -D{var_name}={var_value}"
-        elif 'disable_baselines' in proj_cmake_vars.keys():
-            # The project has a cmake var for disabling baselines code/tests
-            # We disable them if baselines were NOT requested
-            var_name = proj_cmake_vars['disable_baselines']
-            var_value = "OFf"if self._baselines_dir else "ON "
-            cmake_config += f" -D{var_name}={var_value}"
+        if self._enable_baselines_tests:
+            if 'enable_baselines' in proj_cmake_vars.keys():
+                # The project has cmake vars to set in order to ENABLE baseline tests
+                # Set these vars to the specified values
+                options = proj_cmake_vars['enable_baselines']
+                for var_name,var_value in options.items():
+                    cmake_config += f" -D{var_name}={var_value}"
 
-        if self._baselines_dir and 'baselines_dir' in proj_cmake_vars.keys():
-            var_name = proj_cmake_vars['baselines_dir']
-            var_value = self._baselines_dir / build.longname
-            cmake_config += f" -D{var_name}={var_value}"
+            if self._generate and 'generate_baselines' in proj_cmake_vars.keys():
+                # The project has cmake vars to set in order to GENERATE baseline
+                # Set these vars to the specified values
+                # NOTE: this option may enable only a SUBSET of baseline tests,
+                #       and help reduce the build/run time when generating
+                options = proj_cmake_vars['generate_baselines']
+                for var_name,var_value in options.items():
+                    cmake_config += f" -D{var_name}={var_value}"
+
+            if 'baselines_dir' in proj_cmake_vars.keys():
+                # The project has a cmake var to be set to specify baselines location
+                var_name = proj_cmake_vars['baselines_dir']
+                var_value = self._baselines_dir / build.longname
+                cmake_config += f" -D{var_name}={var_value}"
+        elif 'disable_baselines' in proj_cmake_vars.keys():
+            # The project has cmake vars to set in order to DISABLE baseline tests
+            # Set these vars to the specified values
+            options = proj_cmake_vars['disable_baselines']
+            for var_name,var_value in options.items():
+                cmake_config += f" -D{var_name}={var_value}"
 
         # User-requested config options
         for arg in self._cmake_args:
@@ -496,10 +510,6 @@ class Driver(object):
         """
         Check that all baselines are present for the build types that use baselines
         """
-
-        # Sanity check (should check this before calling this fcn)
-        expect(self._baselines_dir is not None,
-                "Error! Baseline directory not correctly set.")
 
         print (f"Checking baselines directory: {self._baselines_dir}")
         missing = []
