@@ -183,6 +183,7 @@ class Driver(object):
 
         success = True
         for b,s in builds_success.items():
+            success &= s
             if not s:
                 last_submit = self.get_last_ctest_file(b,"Submit")
                 last_test = self.get_last_ctest_file(b,"TestsFailed")
@@ -233,7 +234,8 @@ class Driver(object):
 
         # Run ctest
         env_setup = " && ".join(self._machine.env_setup)
-        success,_,_ = run_cmd(ctest_cmd,arg_stdout=None,arg_stderr=None,env_setup=env_setup,from_dir=build_dir,verbose=True)
+        stat, _, _ = run_cmd(ctest_cmd,arg_stdout=None,arg_stderr=None,env_setup=env_setup,from_dir=build_dir,verbose=True)
+        success = stat==0
 
         if self._generate and success:
             baseline_dir = self._baselines_dir / build.longname
