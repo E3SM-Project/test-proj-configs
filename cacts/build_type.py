@@ -48,13 +48,13 @@ class BuildType(object):
 
         expect (isinstance(props.get('cmake_args',{}),dict),
                 f"Invalid value for cmake_args for build type '{name}'.\n"
-                f"  - input value: {props['cmake_args']}\n"
-                f"  - input type: {type(props['cmake_args'])}\n"
+                f"  - input value: {props.get('cmake_args',{})}\n"
+                f"  - input type: {type(props.get('cmake_args',{}))}\n"
                  "  - expected type: dict\n")
         expect (isinstance(default.get('cmake_args',{}),dict),
                 f"Invalid value for cmake_args for build type 'default'.\n"
-                f"  - input value: {default['cmake_args']}\n"
-                f"  - input type: {type(default['cmake_args'])}\n"
+                f"  - input value: {default.get('cmake_args',{})}\n"
+                f"  - input type: {type(default.get('cmake_args',{}))}\n"
                  "  - expected type: dict\n")
         self.cmake_args = default.get('cmake_args',{})
         self.cmake_args.update(props.get('cmake_args',{}))
