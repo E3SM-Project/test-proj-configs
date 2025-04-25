@@ -436,6 +436,7 @@ class Driver(object):
         text += f'# CACTS yaml config file: {self._config_file}\n\n'
 
         text += 'cmake_minimum_required(VERSION 3.9)\n\n'
+
         text += 'set(CTEST_CMAKE_GENERATOR "Unix Makefiles")\n\n'
 
         text += f'set(CTEST_SOURCE_DIRECTORY {self._project.root_dir})\n'
@@ -531,7 +532,8 @@ class Driver(object):
     ###############################################################################
     def parse_config_file(self,machine_name,builds_types):
     ###############################################################################
-        content = yaml.load(open(self._config_file,"r"),Loader=yaml.SafeLoader)
+        with open(self._config_file, "r") as config_file:
+            content = yaml.load(config_file, Loader=yaml.SafeLoader)
         expect (all(k in content.keys() for k in ['project','machines','configurations']),
                 "Missing section in configuration file\n"
                 f" - config file: {self._config_file}\n"
@@ -544,7 +546,8 @@ class Driver(object):
 
         if self._local:
             local_yaml = pathlib.Path("~/.cime/cacts.yaml").expanduser()
-            local_content = yaml.load(open(local_yaml,'r'),Loader=yaml.SafeLoader)
+            with open(local_yaml,'r') as local_file:
+                local_content = yaml.load(local_file,Loader=yaml.SafeLoader)
             machs.update(local_content['machines'])
             machine_name = 'local'
 
