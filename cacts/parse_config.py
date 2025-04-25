@@ -70,3 +70,5 @@ def parse_builds(config_file,project,machine,generate,build_types=None):
             # Skip non-baselines builds when generating baselines
             if (not generate or build.uses_baselines) and build.on_by_default:
                 builds.append(build)
+
+    return builds
