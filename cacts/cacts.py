@@ -424,10 +424,10 @@ class Driver(object):
         if self._submit:
             cdash = self._project.cdash
             text += '# Submission specs\n'
-            text += f'set(CTEST_BUILD_NAME {self._project.cdash.get('build_prefix','')+build.longname})\n'
+            text += f'set(CTEST_BUILD_NAME {self._project.cdash.get("build_prefix","")+build.longname})\n'
             text += f'set(CTEST_SITE {self._machine.name})\n'
-            text += f'set(CTEST_DROP_SITE {cdash['drop_site']})\n'
-            text += f'set(CTEST_DROP_LOCATION {cdash['drop_location']})\n'
+            text += f'set(CTEST_DROP_SITE {cdash["drop_site"]})\n'
+            text += f'set(CTEST_DROP_LOCATION {cdash["drop_location"]})\n'
             disable_ssl = cdash.get('curl_ssl_off',False)
             if disable_ssl:
                 curl_options = 'CURLOPT_SSL_VERIFYPEER_OFF;CURLOPT_SSL_VERIFYHOST_OFF'
