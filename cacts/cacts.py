@@ -224,9 +224,11 @@ class Driver(object):
                 shutil.rmtree(build_dir)
             build_dir.mkdir()
 
-        baseline_dir = self._baselines_dir / build.longname
-        baseline_data_dir = baseline_dir / "data"
+        # If we're generating for the first time in this baseline dir, ensure that the folder exists
         if self._generate:
+            baseline_dir = self._baselines_dir / build.longname
+            baseline_data_dir = baseline_dir / "data"
+
             baseline_dir.mkdir(exist_ok=True)
             baseline_data_dir.mkdir(exist_ok=True)
 
