@@ -371,12 +371,13 @@ class Driver(object):
             for var_name,var_value in proj_cmake_settings['baselines_on'].items():
                 cmake_config += f" -D{var_name}={var_value}"
 
-            # If the project has cmake vars to set in order to GENERATE baselines,
-            # set these vars to the specified values
-            # NOTE: this option may enable only a SUBSET of baseline tests,
-            #       and help reduce the build/run time when generating
-            for var_name,var_value in proj_cmake_settings['baselines_only'].items():
-                cmake_config += f" -D{var_name}={var_value}"
+            if self._generate:
+                # If the project has cmake vars to set in order to ONLY run baselines tests,
+                # set these vars to the specified values
+                # NOTE: this option may enable only a SUBSET of baseline tests,
+                #       and help reduce the build/run time when generating
+                for var_name,var_value in proj_cmake_settings['baselines_only'].items():
+                    cmake_config += f" -D{var_name}={var_value}"
         else:
             # If the project has cmake vars to set in order to DISABLE baseline tests,
             # set these vars to the specified values
