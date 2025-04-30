@@ -27,7 +27,7 @@ class Project:
             'baseline_gen_label',
             'baseline_cmp_label',
             'baseline_summary_file',
-            'cmake_vars_names',
+            'cmake_settings',
             'cdash'
     }
 
@@ -64,7 +64,12 @@ class Project:
         # Can help to limit build time
         # NOTE: projects may have an option to ENABLE such code or an optio to DISABLE it.
         # Hence, we ooffer both alternatives
-        self.cmake_vars_names = project_specs.get('cmake_vars_names',{})
+        self.cmake_settings = project_specs.get('cmake_settings',{})
+
+        # Set empty sub-dicts if not present
+        self.cmake_settings.setdefault('baselines_on',{})
+        self.cmake_settings.setdefault('baselines_off',{})
+        self.cmake_settings.setdefault('baselines_only',{})
 
         self.cdash = project_specs.get('cdash',{})
 
