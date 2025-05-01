@@ -35,12 +35,18 @@ project:
     name: EAMxx
     baseline_gen_label: baseline_gen
     baseline_summary_file: baseline_list
-    cmake_vars_names:
-      enable_baselines:
-          SCREAM_ENABLE_BASELINE_TESTS: ON
-      generate_baselines: 
-          SCREAM_ONLY_GENERATE_BASELINES: ON
-      baselines_dir: SCREAM_BASELINES_DIR
+    cmake_settings:
+        # The following settings are OPTIONAL, but can help reduce the amount of stuff that
+        # needs to be built/run, depending on whether -g/-b flags are used
+        baselines_on:
+            # These settings are used when -b <DIR> flag is passed
+            SCREAM_ENABLE_BASELINE_TESTS: ON
+        baselines_off:
+            # These settings are used when -b <DIR> flag is NOT passed
+            SCREAM_ENABLE_BASELINE_TESTS: OFF
+        baselines_only:
+            # These settings are used when -g flags is passed
+            SCREAM_ONLY_GENERATE_BASELINES: ON
     cdash:
         drop_site: my.cdash.org
         drop_location: submit.php?project=E3SM

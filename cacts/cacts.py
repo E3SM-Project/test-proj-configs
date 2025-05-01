@@ -366,34 +366,24 @@ class Driver(object):
         if self._machine.ftn_compiler is not None:
             cmake_config += f" -DCMAKE_Fortran_COMPILER={self._machine.ftn_compiler}"
 
-        proj_cmake_vars = self._project.cmake_vars_names;
+        proj_cmake_settings = self._project.cmake_settings;
         if self._enable_baselines_tests:
-            if 'enable_baselines' in proj_cmake_vars.keys():
-                # The project has cmake vars to set in order to ENABLE baseline tests
-                # Set these vars to the specified values
-                options = proj_cmake_vars['enable_baselines']
-                for var_name,var_value in options.items():
-                    cmake_config += f" -D{var_name}={var_value}"
+            # If the project has cmake vars to set in order to ENABLE baseline tests,
+            # set these vars to the specified values
+            for var_name,var_value in proj_cmake_settings['baselines_on'].items():
+                cmake_config += f" -D{var_name}={var_value}"
 
-            if self._generate and 'generate_baselines' in proj_cmake_vars.keys():
-                # The project has cmake vars to set in order to GENERATE baseline
-                # Set these vars to the specified values
+            if self._generate:
+                # If the project has cmake vars to set in order to ONLY run baselines tests,
+                # set these vars to the specified values
                 # NOTE: this option may enable only a SUBSET of baseline tests,
                 #       and help reduce the build/run time when generating
-                options = proj_cmake_vars['generate_baselines']
-                for var_name,var_value in options.items():
+                for var_name,var_value in proj_cmake_settings['baselines_only'].items():
                     cmake_config += f" -D{var_name}={var_value}"
-
-            if 'baselines_dir' in proj_cmake_vars.keys():
-                # The project has a cmake var to be set to specify baselines location
-                var_name = proj_cmake_vars['baselines_dir']
-                var_value = self._baselines_dir / build.longname
-                cmake_config += f" -D{var_name}={var_value}"
-        elif 'disable_baselines' in proj_cmake_vars.keys():
-            # The project has cmake vars to set in order to DISABLE baseline tests
-            # Set these vars to the specified values
-            options = proj_cmake_vars['disable_baselines']
-            for var_name,var_value in options.items():
+        else:
+            # If the project has cmake vars to set in order to DISABLE baseline tests,
+            # set these vars to the specified values
+            for var_name,var_value in proj_cmake_settings['baselines_off'].items():
                 cmake_config += f" -D{var_name}={var_value}"
 
         # User-requested config options
