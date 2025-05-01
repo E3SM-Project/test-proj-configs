@@ -3,7 +3,7 @@
 from cacts.cacts import main as cacts_main
 from cacts.get_mach_env import print_mach_env
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 def main() -> None:
     cacts_main()
