@@ -531,9 +531,9 @@ OR
 {0} --help
 
 \033[1mEXAMPLES:\033[0m
-    \033[1;32m# Run all tests on machine FOO, using yaml config file /bar.yaml on machine 'mappy' \033[0m
+    \033[1;32m# Run all tests on machine 'foo', using yaml config file /bar.yaml \033[0m
     > cd $scream_repo/components/eamxx
-    > ./scripts/{0} -m mappy -f /bar.yaml
+    > ./scripts/{0} -m foo -f /bar.yaml
 """.format(pathlib.Path(args[0]).name),
         description=description,
         formatter_class=GoodFormatter
